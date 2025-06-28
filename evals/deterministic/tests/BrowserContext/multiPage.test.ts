@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
-import { Stagehand } from "@browserbasehq/stagehand";
+import { Stagehand } from "@wallcrawler/stagehand";
 import StagehandConfig from "@/evals/deterministic/stagehand.config";
-import { Page } from "@browserbasehq/stagehand";
+import { Page } from "@wallcrawler/stagehand";
 
 import http from "http";
 import express from "express";

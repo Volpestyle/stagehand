@@ -1,4 +1,3 @@
-import Browserbase from "@browserbasehq/sdk";
 import { z } from "zod";
 import { LLMProvider } from "../lib/llm/LLMProvider";
 import { LogLine } from "./log";
@@ -6,20 +5,28 @@ import { AvailableModel, ClientOptions } from "./model";
 import { LLMClient } from "../lib/llm/LLMClient";
 import { Cookie } from "playwright";
 import { AgentProviderType } from "./agent";
+import { ProviderType, ProviderConfig, IBrowserProvider } from "./provider";
 
 export interface ConstructorParams {
   /**
-   * The environment to use for Stagehand
+   * The provider instance to use for browser automation
    */
-  env: "LOCAL" | "BROWSERBASE";
+  provider?: IBrowserProvider;
   /**
-   * Your Browserbase API key
+   * @deprecated Use providerConfig instead
+   * Your API key (for backwards compatibility)
    */
   apiKey?: string;
   /**
-   * Your Browserbase project ID
+   * @deprecated Use providerConfig instead  
+   * Your project ID (for backwards compatibility)
    */
   projectId?: string;
+  /**
+   * @deprecated Use provider instead
+   * The environment to use for Stagehand
+   */
+  env?: "LOCAL" | "BROWSERBASE";
   /**
    * The verbosity of the Stagehand logger
    * 0 - No logs
@@ -42,17 +49,22 @@ export interface ConstructorParams {
    */
   domSettleTimeoutMs?: number;
   /**
-   * The parameters to use for creating a Browserbase session
-   * See https://docs.browserbase.com/reference/api/create-a-session
-   */
-  browserbaseSessionCreateParams?: Browserbase.Sessions.SessionCreateParams;
-  /**
    * Enable caching of LLM responses
    * @default true
    */
   enableCaching?: boolean;
   /**
-   * The ID of a Browserbase session to resume
+   * The ID of a session to resume
+   */
+  sessionId?: string;
+  /**
+   * @deprecated Use providerConfig instead
+   * The parameters to use for creating a session (for backwards compatibility)
+   */
+  browserbaseSessionCreateParams?: Record<string, unknown>;
+  /**
+   * @deprecated Use sessionId instead
+   * The ID of a session to resume (for backwards compatibility)
    */
   browserbaseSessionID?: string;
   /**
@@ -78,7 +90,7 @@ export interface ConstructorParams {
    */
   useAPI?: boolean;
   /**
-   * Wait for captchas to be solved after navigation when using Browserbase environment.
+   * Wait for captchas to be solved after navigation when using cloud providers.
    *
    * @default false
    */

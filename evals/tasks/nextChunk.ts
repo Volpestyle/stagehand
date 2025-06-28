@@ -1,4 +1,4 @@
-import { Stagehand } from "@browserbasehq/stagehand";
+import { Stagehand } from "@wallcrawler/stagehand";
 import { EvalFunction } from "@/types/evals";
 
 export const nextChunk: EvalFunction = async ({

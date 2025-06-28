@@ -32,6 +32,36 @@
 	<a href="https://trendshift.io/repositories/12122" target="_blank"><img src="https://trendshift.io/api/badge/repositories/12122" alt="browserbase%2Fstagehand | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </p>
 
+---
+
+## 🍴 Wallcrawler Fork
+
+This is a fork of [Stagehand](https://github.com/browserbase/stagehand) customized for the [Wallcrawler](https://github.com/Volpestyle/wallcrawler) project. It serves as the core browser automation package in the Wallcrawler monorepo under the name `@wallcrawler/stagehand`.
+
+### Syncing with Upstream
+
+To pull in the latest changes from the main Stagehand repository:
+
+```bash
+# Navigate to the stagehand package
+cd packages/stagehand
+
+# Fetch latest changes from upstream
+git fetch upstream
+
+# Merge upstream changes (or use rebase if you prefer)
+git merge upstream/main
+
+# Push updates to your fork
+git push origin main
+```
+
+### Original Documentation
+
+For the complete Stagehand documentation, visit [docs.stagehand.dev](https://docs.stagehand.dev) or see the sections below.
+
+---
+
 ## Why Stagehand?
 
 Most existing browser automation tools either require you to write low-level code in a framework like Selenium, Playwright, or Puppeteer, or use high-level agents that can be unpredictable in production. By letting developers choose what to write in code vs. natural language, Stagehand is the natural choice for browser automations in production.

@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { test, expect } from "@playwright/test";
-import { Stagehand } from "@browserbasehq/stagehand";
+import { Stagehand } from "@wallcrawler/stagehand";
 import StagehandConfig from "@/evals/deterministic/stagehand.config";
 
 test.describe("Playwright Upload", () => {

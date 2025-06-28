@@ -12,7 +12,7 @@
  */
 import { logLineToString } from "./utils";
 import { LogLineEval } from "@/types/evals";
-import { Stagehand, LogLine } from "@browserbasehq/stagehand";
+import { Stagehand, LogLine } from "@wallcrawler/stagehand";
 
 /**
  * parseLogLine:

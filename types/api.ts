@@ -1,4 +1,3 @@
-import Browserbase from "@browserbasehq/sdk";
 import { LogLine } from "./log";
 
 export interface StagehandAPIConstructorParams {
@@ -20,10 +19,17 @@ export interface StartSessionParams {
   verbose: number;
   debugDom: boolean;
   systemPrompt?: string;
-  browserbaseSessionCreateParams?: Browserbase.Sessions.SessionCreateParams;
   selfHeal?: boolean;
   waitForCaptchaSolves?: boolean;
   actionTimeoutMs?: number;
+  sessionId?: string;
+  /**
+   * @deprecated Use sessionId and provider configuration instead
+   */
+  browserbaseSessionCreateParams?: Record<string, unknown>;
+  /**
+   * @deprecated Use sessionId instead
+   */
   browserbaseSessionID?: string;
 }
 

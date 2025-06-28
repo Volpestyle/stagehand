@@ -9,7 +9,7 @@ import {
   AvailableModel,
   ClientOptions,
   Stagehand,
-} from "@browserbasehq/stagehand";
+} from "@wallcrawler/stagehand";
 import { LLMResponseError } from "@/types/stagehandErrors";
 import dotenv from "dotenv";
 import {

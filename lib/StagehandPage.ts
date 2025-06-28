@@ -1,4 +1,3 @@
-import { Browserbase } from "@browserbasehq/sdk";
 import type { CDPSession, Page as PlaywrightPage, Frame } from "playwright";
 import { chromium } from "playwright";
 import { z } from "zod";
@@ -23,7 +22,7 @@ import {
   StagehandNotInitializedError,
   StagehandEnvironmentError,
   CaptchaTimeoutError,
-  BrowserbaseSessionNotFoundError,
+  StagehandError as ProviderSessionNotFoundError,
   MissingLLMConfigurationError,
   HandlerNotInitializedError,
   StagehandDefaultError,
@@ -182,50 +181,49 @@ ${scriptContent} \
   private async _refreshPageFromAPI() {
     if (!this.api) return;
 
-    const sessionId = this.stagehand.browserbaseSessionID;
+    const sessionId = this.stagehand.sessionId || this.stagehand.browserbaseSessionID;
     if (!sessionId) {
-      throw new BrowserbaseSessionNotFoundError();
+      throw new ProviderSessionNotFoundError("No active session found for page refresh");
     }
 
-    const browserbase = new Browserbase({
-      apiKey: this.stagehand["apiKey"] ?? process.env.BROWSERBASE_API_KEY,
+    // TODO: Implement provider-specific page refresh logic
+    // For now, this maintains backwards compatibility but should be refactored
+    // to use the provider system for getting session status and connection URLs
+    this.stagehand.log({
+      category: "page-refresh",
+      message: "Page refresh from API not yet implemented with provider system",
+      level: 1,
+      auxiliary: {
+        sessionId: { value: sessionId, type: "string" },
+        providerType: { value: this.stagehand.providerType, type: "string" }
+      }
     });
 
-    const sessionStatus = await browserbase.sessions.retrieve(sessionId);
+    // For local provider, we don't need to refresh since browser is local
+    if (this.stagehand.providerType === "local") {
+      await this.intPage.waitForLoadState("domcontentloaded");
+      await this._waitForSettledDom();
+      return;
+    }
 
-    const connectUrl = sessionStatus.connectUrl;
-    const browser = await chromium.connectOverCDP(connectUrl);
-    const context = browser.contexts()[0];
-    const newPage = context.pages()[0];
-
-    const newStagehandPage = await new StagehandPage(
-      newPage,
-      this.stagehand,
-      this.intContext,
-      this.llmClient,
-      this.userProvidedInstructions,
-      this.api,
-    ).init();
-
-    this.intPage = newStagehandPage.page;
-
-    await this.intPage.waitForLoadState("domcontentloaded");
-    await this._waitForSettledDom();
+    // For AWS provider, we would need to implement AWS-specific refresh logic
+    // This is a placeholder until AWS provider is fully implemented
+    throw new StagehandError("Page refresh not yet supported for AWS provider");
   }
 
   /**
-   * Waits for a captcha to be solved when using Browserbase environment.
+   * Waits for a captcha to be solved when using cloud providers.
    *
    * @param timeoutMs - Optional timeout in milliseconds. If provided, the promise will reject if the captcha solving hasn't started within the given time.
-   * @throws StagehandEnvironmentError if called in a LOCAL environment
+   * @throws StagehandEnvironmentError if called with a local provider
    * @throws CaptchaTimeoutError if the timeout is reached before captcha solving starts
    * @returns Promise that resolves when the captcha is solved
    */
   public async waitForCaptchaSolve(timeoutMs?: number) {
-    if (this.stagehand.env === "LOCAL") {
+    if (this.stagehand.providerType === "local") {
       throw new StagehandEnvironmentError(
-        this.stagehand.env,
-        "BROWSERBASE",
+        "local",
+        "aws",
         "waitForCaptcha method",
       );
     }
@@ -249,7 +247,12 @@ ${scriptContent} \
       }
 
       this.intPage.on("console", (msg) => {
-        if (msg.text() === "browserbase-solving-finished") {
+        // Support multiple provider captcha solving patterns
+        const text = msg.text();
+        const isFinished = text === "browserbase-solving-finished" || text === "captcha-solving-finished";
+        const isStarted = text === "browserbase-solving-started" || text === "captcha-solving-started";
+        
+        if (isFinished) {
           this.stagehand.log({
             category: "captcha",
             message: "Captcha solving finished",
@@ -257,7 +260,7 @@ ${scriptContent} \
           });
           if (timeoutId) clearTimeout(timeoutId);
           resolve();
-        } else if (msg.text() === "browserbase-solving-started") {
+        } else if (isStarted) {
           started = true;
           this.stagehand.log({
             category: "captcha",
@@ -322,8 +325,8 @@ ${scriptContent} \
             };
           }
 
-          // Handle screenshots with CDP
-          if (prop === "screenshot" && this.stagehand.env === "BROWSERBASE") {
+          // Handle screenshots with CDP for cloud providers
+          if (prop === "screenshot" && this.stagehand.providerType === "aws") {
             return async (
               options: {
                 type?: "png" | "jpeg";

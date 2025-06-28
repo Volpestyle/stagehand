@@ -1,4 +1,3 @@
-import { Browserbase } from "@browserbasehq/sdk";
 import { Browser, chromium } from "playwright";
 import dotenv from "dotenv";
 import fs from "fs";
@@ -34,6 +33,9 @@ import { AgentExecuteOptions, AgentResult } from "../types/agent";
 import { StagehandAgentHandler } from "./handlers/agentHandler";
 import { StagehandOperatorHandler } from "./handlers/operatorHandler";
 import { StagehandLogger } from "./logger";
+import { getBrowserWithProvider } from "./browserConnection";
+import { ProviderType, ProviderConfig, IBrowserProvider, Artifact, ArtifactList } from "./providers";
+import { ProviderManager } from "./providers/ProviderManager";
 
 import {
   StagehandError,
@@ -67,317 +69,49 @@ const defaultLogger = async (logLine: LogLine, disablePino?: boolean) => {
   globalLogger.log(logLine);
 };
 
+/**
+ * Legacy getBrowser function for backwards compatibility
+ * @deprecated Use getBrowserWithProvider instead
+ */
 async function getBrowser(
   apiKey: string | undefined,
   projectId: string | undefined,
   env: "LOCAL" | "BROWSERBASE" = "LOCAL",
   headless: boolean = false,
   logger: (message: LogLine) => void,
-  browserbaseSessionCreateParams?: Browserbase.Sessions.SessionCreateParams,
+  browserbaseSessionCreateParams?: Record<string, unknown>,
   browserbaseSessionID?: string,
   localBrowserLaunchOptions?: LocalBrowserLaunchOptions,
 ): Promise<BrowserResult> {
-  if (env === "BROWSERBASE") {
-    if (!apiKey) {
-      throw new MissingEnvironmentVariableError(
-        "BROWSERBASE_API_KEY",
-        "Browserbase",
-      );
-    }
-    if (!projectId) {
-      throw new MissingEnvironmentVariableError(
-        "BROWSERBASE_PROJECT_ID",
-        "Browserbase",
-      );
-    }
-
-    let debugUrl: string | undefined = undefined;
-    let sessionUrl: string | undefined = undefined;
-    let sessionId: string;
-    let connectUrl: string;
-
-    const browserbase = new Browserbase({
-      apiKey,
-    });
-
-    if (browserbaseSessionID) {
-      // Validate the session status
-      try {
-        const session =
-          await browserbase.sessions.retrieve(browserbaseSessionID);
-
-        if (session.status !== "RUNNING") {
-          throw new StagehandError(
-            `Session ${browserbaseSessionID} is not running (status: ${session.status})`,
-          );
-        }
-
-        sessionId = browserbaseSessionID;
-        connectUrl = session.connectUrl;
-
-        logger({
-          category: "init",
-          message: "resuming existing browserbase session...",
-          level: 1,
-          auxiliary: {
-            sessionId: {
-              value: sessionId,
-              type: "string",
-            },
-          },
-        });
-      } catch (error) {
-        logger({
-          category: "init",
-          message: "failed to resume session",
-          level: 0,
-          auxiliary: {
-            error: {
-              value: error.message,
-              type: "string",
-            },
-            trace: {
-              value: error.stack,
-              type: "string",
-            },
-          },
-        });
-        throw error;
-      }
-    } else {
-      // Create new session (existing code)
-      logger({
-        category: "init",
-        message: "creating new browserbase session...",
-        level: 1,
-      });
-
-      if (!projectId) {
-        throw new StagehandError(
-          "BROWSERBASE_PROJECT_ID is required for new Browserbase sessions.",
-        );
-      }
-
-      const session = await browserbase.sessions.create({
-        projectId,
-        ...browserbaseSessionCreateParams,
-        userMetadata: {
-          ...(browserbaseSessionCreateParams?.userMetadata || {}),
-          stagehand: "true",
-        },
-      });
-
-      sessionId = session.id;
-      connectUrl = session.connectUrl;
-      logger({
-        category: "init",
-        message: "created new browserbase session",
-        level: 1,
-        auxiliary: {
-          sessionId: {
-            value: sessionId,
-            type: "string",
-          },
-        },
-      });
-    }
-    if (!connectUrl.includes("connect.connect")) {
-      logger({
-        category: "init",
-        message: "connecting to browserbase session",
-        level: 1,
-        auxiliary: {
-          connectUrl: {
-            value: connectUrl,
-            type: "string",
-          },
-        },
-      });
-    }
-    const browser = await chromium.connectOverCDP(connectUrl);
-
-    const { debuggerUrl } = await browserbase.sessions.debug(sessionId);
-
-    debugUrl = debuggerUrl;
-    sessionUrl = `https://www.browserbase.com/sessions/${sessionId}`;
-
-    logger({
-      category: "init",
-      message: browserbaseSessionID
-        ? "browserbase session resumed"
-        : "browserbase session started",
-      auxiliary: {
-        sessionUrl: {
-          value: sessionUrl,
-          type: "string",
-        },
-        debugUrl: {
-          value: debugUrl,
-          type: "string",
-        },
-        sessionId: {
-          value: sessionId,
-          type: "string",
-        },
-      },
-    });
-
-    const context = browser.contexts()[0];
-
-    return { browser, context, debugUrl, sessionUrl, sessionId, env };
-  } else {
-    if (localBrowserLaunchOptions?.cdpUrl) {
-      if (!localBrowserLaunchOptions.cdpUrl.includes("connect.connect")) {
-        logger({
-          category: "init",
-          message: "connecting to local browser via CDP URL",
-          level: 1,
-          auxiliary: {
-            cdpUrl: {
-              value: localBrowserLaunchOptions.cdpUrl,
-              type: "string",
-            },
-          },
-        });
-      }
-
-      const browser = await chromium.connectOverCDP(
-        localBrowserLaunchOptions.cdpUrl,
-      );
-      const context = browser.contexts()[0];
-      return { browser, context, env: "LOCAL" };
-    }
-
-    let userDataDir = localBrowserLaunchOptions?.userDataDir;
-    if (!userDataDir) {
-      const tmpDirPath = path.join(os.tmpdir(), "stagehand");
-      if (!fs.existsSync(tmpDirPath)) {
-        fs.mkdirSync(tmpDirPath, { recursive: true });
-      }
-
-      const tmpDir = fs.mkdtempSync(path.join(tmpDirPath, "ctx_"));
-      fs.mkdirSync(path.join(tmpDir, "userdir/Default"), { recursive: true });
-
-      const defaultPreferences = {
-        plugins: {
-          always_open_pdf_externally: true,
-        },
-      };
-
-      fs.writeFileSync(
-        path.join(tmpDir, "userdir/Default/Preferences"),
-        JSON.stringify(defaultPreferences),
-      );
-      userDataDir = path.join(tmpDir, "userdir");
-    }
-
-    let downloadsPath = localBrowserLaunchOptions?.downloadsPath;
-    if (!downloadsPath) {
-      downloadsPath = path.join(process.cwd(), "downloads");
-      fs.mkdirSync(downloadsPath, { recursive: true });
-    }
-
-    const context = await chromium.launchPersistentContext(userDataDir, {
-      acceptDownloads: localBrowserLaunchOptions?.acceptDownloads ?? true,
-      headless: localBrowserLaunchOptions?.headless ?? headless,
-      viewport: {
-        width: localBrowserLaunchOptions?.viewport?.width ?? 1024,
-        height: localBrowserLaunchOptions?.viewport?.height ?? 768,
-      },
-      locale: localBrowserLaunchOptions?.locale ?? "en-US",
-      timezoneId: localBrowserLaunchOptions?.timezoneId ?? "America/New_York",
-      deviceScaleFactor: localBrowserLaunchOptions?.deviceScaleFactor ?? 1,
-      args: localBrowserLaunchOptions?.args ?? [
-        "--disable-blink-features=AutomationControlled",
-      ],
-      bypassCSP: localBrowserLaunchOptions?.bypassCSP ?? true,
-      proxy: localBrowserLaunchOptions?.proxy,
-      geolocation: localBrowserLaunchOptions?.geolocation,
-      hasTouch: localBrowserLaunchOptions?.hasTouch ?? true,
-      ignoreHTTPSErrors: localBrowserLaunchOptions?.ignoreHTTPSErrors ?? true,
-      permissions: localBrowserLaunchOptions?.permissions,
-      recordHar: localBrowserLaunchOptions?.recordHar,
-      recordVideo: localBrowserLaunchOptions?.recordVideo,
-      tracesDir: localBrowserLaunchOptions?.tracesDir,
-      extraHTTPHeaders: localBrowserLaunchOptions?.extraHTTPHeaders,
-      chromiumSandbox: localBrowserLaunchOptions?.chromiumSandbox ?? false,
-      devtools: localBrowserLaunchOptions?.devtools ?? false,
-      env: localBrowserLaunchOptions?.env,
-      executablePath: localBrowserLaunchOptions?.executablePath,
-      handleSIGHUP: localBrowserLaunchOptions?.handleSIGHUP ?? true,
-      handleSIGINT: localBrowserLaunchOptions?.handleSIGINT ?? true,
-      handleSIGTERM: localBrowserLaunchOptions?.handleSIGTERM ?? true,
-      ignoreDefaultArgs: localBrowserLaunchOptions?.ignoreDefaultArgs,
-    });
-
-    if (localBrowserLaunchOptions?.cookies) {
-      context.addCookies(localBrowserLaunchOptions.cookies);
-    }
-    // This will always be when null launched with chromium.launchPersistentContext, but not when connected over CDP to an existing browser
-    const browser = context.browser();
-
-    logger({
-      category: "init",
-      message: "local browser started successfully.",
-    });
-
-    await applyStealthScripts(context);
-
-    return { browser, context, contextPath: userDataDir, env: "LOCAL" };
-  }
-}
-
-async function applyStealthScripts(context: BrowserContext) {
-  await context.addInitScript(() => {
-    // Override the navigator.webdriver property
-    Object.defineProperty(navigator, "webdriver", {
-      get: () => undefined,
-    });
-
-    // Mock languages and plugins to mimic a real browser
-    Object.defineProperty(navigator, "languages", {
-      get: () => ["en-US", "en"],
-    });
-
-    Object.defineProperty(navigator, "plugins", {
-      get: () => [1, 2, 3, 4, 5],
-    });
-
-    // Remove Playwright-specific properties
-    delete window.__playwright;
-    delete window.__pw_manual;
-    delete window.__PW_inspect;
-
-    // Redefine the headless property
-    Object.defineProperty(navigator, "headless", {
-      get: () => false,
-    });
-
-    // Override the permissions API
-    const originalQuery = window.navigator.permissions.query;
-    window.navigator.permissions.query = (parameters) =>
-      parameters.name === "notifications"
-        ? Promise.resolve({
-            state: Notification.permission,
-          } as PermissionStatus)
-        : originalQuery(parameters);
+  return getBrowserWithProvider({
+    apiKey,
+    projectId,
+    env,
+    headless,
+    logger,
+    browserbaseSessionCreateParams,
+    browserbaseSessionID,
+    localBrowserLaunchOptions,
   });
 }
+
 
 export class Stagehand {
   private stagehandPage!: StagehandPage;
   private stagehandContext!: StagehandContext;
-  public browserbaseSessionID?: string;
+  
+  // Provider system
+  private provider: IBrowserProvider;
+  private _providerType: ProviderType;
+  private sessionId?: string;
+  
+  // Core settings
   public readonly domSettleTimeoutMs: number;
   public readonly debugDom: boolean;
   public readonly headless: boolean;
   public verbose: 0 | 1 | 2;
   public llmProvider: LLMProvider;
   public enableCaching: boolean;
-  protected apiKey: string | undefined;
-  private projectId: string | undefined;
-  private externalLogger?: (logLine: LogLine) => void;
-  private browserbaseSessionCreateParams?: Browserbase.Sessions.SessionCreateParams;
   public variables: { [key: string]: unknown };
   private contextPath?: string;
   public llmClient: LLMClient;
@@ -386,7 +120,6 @@ export class Stagehand {
   private modelName: AvailableModel;
   public apiClient: StagehandAPI | undefined;
   public readonly waitForCaptchaSolves: boolean;
-  private localBrowserLaunchOptions?: LocalBrowserLaunchOptions;
   public readonly selfHeal: boolean;
   private cleanupCalled = false;
   public readonly actTimeoutMs: number;
@@ -394,11 +127,37 @@ export class Stagehand {
   private stagehandLogger: StagehandLogger;
   private disablePino: boolean;
   private modelClientOptions: ClientOptions;
-  private _env: "LOCAL" | "BROWSERBASE";
   private _browser: Browser | undefined;
   private _isClosed: boolean = false;
   private _history: Array<HistoryEntry> = [];
   public readonly experimental: boolean;
+  private externalLogger?: (logLine: LogLine) => void;
+  
+  // Backwards compatibility - deprecated
+  /**
+   * @deprecated Use sessionId instead
+   */
+  public browserbaseSessionID?: string;
+  /**
+   * @deprecated Use providerType instead
+   */
+  private _env: "LOCAL" | "BROWSERBASE";
+  /**
+   * @deprecated Use providerConfig instead
+   */
+  protected apiKey: string | undefined;
+  /**
+   * @deprecated Use providerConfig instead
+   */
+  private projectId: string | undefined;
+  /**
+   * @deprecated Use providerConfig instead
+   */
+  private browserbaseSessionCreateParams?: Record<string, unknown>;
+  /**
+   * @deprecated Use providerConfig instead
+   */
+  private localBrowserLaunchOptions?: LocalBrowserLaunchOptions;
   public get history(): ReadonlyArray<HistoryEntry> {
     return Object.freeze([...this._history]);
   }
@@ -485,30 +244,31 @@ export class Stagehand {
 
   constructor(
     {
-      env,
-      apiKey,
-      projectId,
+      provider,
       verbose,
       llmProvider,
       llmClient,
       logger,
-      browserbaseSessionCreateParams,
       domSettleTimeoutMs,
       enableCaching,
-      browserbaseSessionID,
+      sessionId,
       modelName,
       modelClientOptions,
       systemPrompt,
       useAPI = true,
-      localBrowserLaunchOptions,
       waitForCaptchaSolves = false,
       logInferenceToFile = false,
       selfHeal = false,
       disablePino,
       experimental = false,
-    }: ConstructorParams = {
-      env: "BROWSERBASE",
-    },
+      // Backwards compatibility
+      env,
+      apiKey,
+      projectId,
+      browserbaseSessionCreateParams,
+      browserbaseSessionID,
+      localBrowserLaunchOptions,
+    }: ConstructorParams = {},
   ) {
     this.externalLogger =
       logger || ((logLine: LogLine) => defaultLogger(logLine, disablePino));
@@ -529,25 +289,18 @@ export class Stagehand {
 
     this.llmProvider =
       llmProvider || new LLMProvider(this.logger, this.enableCaching);
+
+    // Initialize provider system
+    this.initializeProvider(provider, env, apiKey, projectId, localBrowserLaunchOptions);
+    
+    // Store backwards compatibility values
     this.apiKey = apiKey ?? process.env.BROWSERBASE_API_KEY;
     this.projectId = projectId ?? process.env.BROWSERBASE_PROJECT_ID;
-
-    // Store the environment value
-    this._env = env ?? "BROWSERBASE";
-
-    if (this._env === "BROWSERBASE") {
-      if (!this.apiKey) {
-        throw new MissingEnvironmentVariableError(
-          "BROWSERBASE_API_KEY",
-          "Browserbase",
-        );
-      } else if (!this.projectId) {
-        throw new MissingEnvironmentVariableError(
-          "BROWSERBASE_PROJECT_ID",
-          "Browserbase",
-        );
-      }
-    }
+    this.browserbaseSessionCreateParams = browserbaseSessionCreateParams;
+    this.browserbaseSessionID = browserbaseSessionID;
+    this.localBrowserLaunchOptions = localBrowserLaunchOptions;
+    this._env = env ?? (this._providerType === "local" ? "LOCAL" : "BROWSERBASE");
+    this.sessionId = sessionId || browserbaseSessionID;
 
     this.verbose = verbose ?? 0;
     // Update logger verbosity level
@@ -607,12 +360,10 @@ export class Stagehand {
 
     this.domSettleTimeoutMs = domSettleTimeoutMs ?? 30_000;
     this.headless = localBrowserLaunchOptions?.headless ?? false;
-    this.browserbaseSessionCreateParams = browserbaseSessionCreateParams;
-    this.browserbaseSessionID = browserbaseSessionID;
     this.userProvidedInstructions = systemPrompt;
     this.usingAPI = useAPI;
-    if (this.usingAPI && env === "LOCAL") {
-      // Make env supersede useAPI
+    if (this.usingAPI && this._providerType === "local") {
+      // Make local provider supersede useAPI
       this.usingAPI = false;
     } else if (
       this.usingAPI &&
@@ -625,7 +376,6 @@ export class Stagehand {
       );
     }
     this.waitForCaptchaSolves = waitForCaptchaSolves;
-    this.localBrowserLaunchOptions = localBrowserLaunchOptions;
 
     if (this.usingAPI) {
       this.registerSignalHandlers();
@@ -643,18 +393,51 @@ export class Stagehand {
     }
   }
 
+  private initializeProvider(
+    provider?: IBrowserProvider,
+    env?: "LOCAL" | "BROWSERBASE",
+    apiKey?: string,
+    projectId?: string,
+    localBrowserLaunchOptions?: LocalBrowserLaunchOptions,
+  ): void {
+    if (provider) {
+      // Use provided provider instance
+      this.provider = provider;
+      this._providerType = provider.type;
+    } else {
+      // Backwards compatibility: create a default provider based on env
+      if (env === "BROWSERBASE") {
+        this.stagehandLogger.warn(
+          'env: "BROWSERBASE" is deprecated. Please use a provider instance from @wallcrawler/infra-aws package.'
+        );
+      }
+      
+      // For backwards compatibility, we'll throw an error directing users to use provider packages
+      const suggestedProvider = env === "LOCAL" || !env ? "local" : "aws";
+      throw new StagehandError(
+        `No provider instance provided. Please install and use a provider package:\n` +
+        `- For local: npm install @wallcrawler/infra-local\n` +
+        `- For AWS: npm install @wallcrawler/infra-aws\n\n` +
+        `Example usage:\n` +
+        `import { ${suggestedProvider === "local" ? "LocalProvider" : "AwsProvider"} } from '@wallcrawler/infra-${suggestedProvider}';\n` +
+        `const provider = new ${suggestedProvider === "local" ? "LocalProvider" : "AwsProvider"}(config);\n` +
+        `const stagehand = new Stagehand({ provider });`
+      );
+    }
+  }
+
   private registerSignalHandlers() {
     const cleanup = async (signal: string) => {
       if (this.cleanupCalled) return;
       this.cleanupCalled = true;
 
       this.stagehandLogger.info(
-        `[${signal}] received. Ending Browserbase session...`,
+        `[${signal}] received. Ending ${this._providerType} session...`,
       );
       try {
         await this.close();
       } catch (err) {
-        this.stagehandLogger.error("Error ending Browserbase session:", {
+        this.stagehandLogger.error(`Error ending ${this._providerType} session:`, {
           error: String(err),
         });
       } finally {
@@ -673,23 +456,15 @@ export class Stagehand {
     };
   }
 
+  public get providerType(): ProviderType {
+    return this._providerType;
+  }
+
+  /**
+   * @deprecated Use providerType instead
+   */
   public get env(): "LOCAL" | "BROWSERBASE" {
-    if (this._env === "BROWSERBASE") {
-      if (!this.apiKey) {
-        throw new MissingEnvironmentVariableError(
-          "BROWSERBASE_API_KEY",
-          "Browserbase",
-        );
-      } else if (!this.projectId) {
-        throw new MissingEnvironmentVariableError(
-          "BROWSERBASE_PROJECT_ID",
-          "Browserbase",
-        );
-      }
-      return "BROWSERBASE";
-    } else {
-      return "LOCAL";
-    }
+    return this._providerType === "local" ? "LOCAL" : "BROWSERBASE";
   }
 
   public get context(): EnhancedContext {
@@ -735,19 +510,23 @@ export class Stagehand {
       this.browserbaseSessionID = sessionId;
     }
 
-    const { browser, context, debugUrl, sessionUrl, contextPath, sessionId } =
-      await getBrowser(
-        this.apiKey,
-        this.projectId,
-        this.env,
-        this.headless,
-        this.logger,
-        this.browserbaseSessionCreateParams,
-        this.browserbaseSessionID,
-        this.localBrowserLaunchOptions,
-      ).catch((e) => {
+    const { provider, browser, context, debugUrl, sessionUrl, contextPath, sessionId } =
+      await getBrowserWithProvider({
+        provider: this.provider,
+        sessionId: this.sessionId,
+        headless: this.headless,
+        logger: this.logger,
+        // Backwards compatibility
+        apiKey: this.apiKey,
+        projectId: this.projectId,
+        env: this._env,
+        browserbaseSessionCreateParams: this.browserbaseSessionCreateParams,
+        browserbaseSessionID: this.browserbaseSessionID,
+        localBrowserLaunchOptions: this.localBrowserLaunchOptions,
+      }).catch((e) => {
         this.stagehandLogger.error("Error in init:", { error: String(e) });
         const br: BrowserResult = {
+          provider: this._providerType,
           context: undefined,
           debugUrl: undefined,
           sessionUrl: undefined,
@@ -787,7 +566,8 @@ export class Stagehand {
       content: guardedScript,
     });
 
-    this.browserbaseSessionID = sessionId;
+    this.sessionId = sessionId;
+    this.browserbaseSessionID = sessionId; // Backwards compatibility
 
     return { debugUrl, sessionUrl, sessionId };
   }
@@ -939,6 +719,230 @@ export class Stagehand {
       },
     };
   }
+
+  /**
+   * Save an artifact to provider storage
+   * @param filePath - Path to the file to save
+   * @param data - File data as Buffer
+   * @returns Artifact information
+   */
+  async saveArtifact(filePath: string, data: Buffer): Promise<Artifact> {
+    if (!this.sessionId) {
+      throw new StagehandError("No active session - cannot save artifact");
+    }
+
+    if (!this.provider) {
+      throw new StagehandError("Provider not initialized - cannot save artifact");
+    }
+
+    this.log({
+      category: "artifact",
+      message: "saving artifact",
+      level: 1,
+      auxiliary: {
+        filePath: { value: filePath, type: "string" },
+        size: { value: data.length.toString(), type: "integer" },
+        providerType: { value: this._providerType, type: "string" },
+      },
+    });
+
+    try {
+      const artifact = await this.provider.saveArtifact(this.sessionId, filePath, data);
+      
+      this.log({
+        category: "artifact",
+        message: "artifact saved successfully",
+        level: 1,
+        auxiliary: {
+          artifactId: { value: artifact.id, type: "string" },
+          name: { value: artifact.name, type: "string" },
+          size: { value: artifact.size.toString(), type: "integer" },
+        },
+      });
+
+      return artifact;
+    } catch (error) {
+      this.log({
+        category: "artifact",
+        message: "failed to save artifact",
+        level: 0,
+        auxiliary: {
+          error: { value: (error as Error).message, type: "string" },
+        },
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * List artifacts for the current session
+   * @param cursor - Optional pagination cursor
+   * @returns List of artifacts with pagination info
+   */
+  async getArtifacts(cursor?: string): Promise<ArtifactList> {
+    if (!this.sessionId) {
+      throw new StagehandError("No active session - cannot list artifacts");
+    }
+
+    if (!this.provider) {
+      throw new StagehandError("Provider not initialized - cannot list artifacts");
+    }
+
+    this.log({
+      category: "artifact",
+      message: "listing artifacts",
+      level: 1,
+      auxiliary: {
+        sessionId: { value: this.sessionId, type: "string" },
+        providerType: { value: this._providerType, type: "string" },
+      },
+    });
+
+    try {
+      const artifactList = await this.provider.getArtifacts(this.sessionId, cursor);
+      
+      this.log({
+        category: "artifact",
+        message: "artifacts listed successfully",
+        level: 1,
+        auxiliary: {
+          count: { value: artifactList.artifacts.length.toString(), type: "integer" },
+          totalCount: { value: artifactList.totalCount.toString(), type: "integer" },
+          hasMore: { value: artifactList.hasMore.toString(), type: "boolean" },
+        },
+      });
+
+      return artifactList;
+    } catch (error) {
+      this.log({
+        category: "artifact",
+        message: "failed to list artifacts",
+        level: 0,
+        auxiliary: {
+          error: { value: (error as Error).message, type: "string" },
+        },
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Download a specific artifact
+   * @param artifactId - Unique identifier for the artifact
+   * @returns Artifact data as Buffer
+   */
+  async downloadArtifact(artifactId: string): Promise<Buffer> {
+    if (!this.sessionId) {
+      throw new StagehandError("No active session - cannot download artifact");
+    }
+
+    if (!this.provider) {
+      throw new StagehandError("Provider not initialized - cannot download artifact");
+    }
+
+    this.log({
+      category: "artifact",
+      message: "downloading artifact",
+      level: 1,
+      auxiliary: {
+        artifactId: { value: artifactId, type: "string" },
+        sessionId: { value: this.sessionId, type: "string" },
+        providerType: { value: this._providerType, type: "string" },
+      },
+    });
+
+    try {
+      const data = await this.provider.downloadArtifact(this.sessionId, artifactId);
+      
+      this.log({
+        category: "artifact",
+        message: "artifact downloaded successfully",
+        level: 1,
+        auxiliary: {
+          artifactId: { value: artifactId, type: "string" },
+          size: { value: data.length.toString(), type: "integer" },
+        },
+      });
+
+      return data;
+    } catch (error) {
+      this.log({
+        category: "artifact",
+        message: "failed to download artifact",
+        level: 0,
+        auxiliary: {
+          error: { value: (error as Error).message, type: "string" },
+          artifactId: { value: artifactId, type: "string" },
+        },
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Save a page screenshot as an artifact
+   * @param options - Screenshot options (optional)
+   * @returns Artifact information for the saved screenshot
+   */
+  async saveScreenshot(options?: {
+    name?: string;
+    type?: "png" | "jpeg";
+    quality?: number;
+    fullPage?: boolean;
+  }): Promise<Artifact> {
+    if (!this.stagehandPage) {
+      throw new StagehandNotInitializedError("page");
+    }
+
+    const screenshotOptions = {
+      type: options?.type || "png",
+      quality: options?.quality,
+      fullPage: options?.fullPage || false,
+    };
+
+    this.log({
+      category: "artifact",
+      message: "taking screenshot",
+      level: 1,
+      auxiliary: {
+        type: { value: screenshotOptions.type, type: "string" },
+        fullPage: { value: screenshotOptions.fullPage.toString(), type: "boolean" },
+      },
+    });
+
+    try {
+      const screenshotBuffer = await this.page.screenshot(screenshotOptions);
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const fileName = options?.name || `screenshot-${timestamp}.${screenshotOptions.type}`;
+      
+      return await this.saveArtifact(fileName, Buffer.from(screenshotBuffer));
+    } catch (error) {
+      this.log({
+        category: "artifact",
+        message: "failed to save screenshot",
+        level: 0,
+        auxiliary: {
+          error: { value: (error as Error).message, type: "string" },
+        },
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Get a list of downloads that occurred during the session
+   * @deprecated Use getArtifacts() instead. This method is kept for backwards compatibility.
+   */
+  async getDownloads(): Promise<Artifact[]> {
+    this.log({
+      category: "deprecation",
+      message: "getDownloads() is deprecated. Use getArtifacts() instead.",
+      level: 1,
+    });
+
+    const artifactList = await this.getArtifacts();
+    return artifactList.artifacts;
+  }
 }
 
 export * from "../types/browser";
@@ -949,6 +953,7 @@ export * from "../types/playwright";
 export * from "../types/stagehand";
 export * from "../types/operator";
 export * from "../types/agent";
+export * from "../types/provider";
 export * from "./llm/LLMClient";
 export * from "../types/stagehandErrors";
 export * from "../types/stagehandApiErrors";
