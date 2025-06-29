@@ -1,5 +1,5 @@
 import type { CDPSession, Page as PlaywrightPage, Frame } from "playwright";
-import { chromium } from "playwright";
+// Removed unused chromium import
 import { z } from "zod";
 import { Page, defaultExtractSchema } from "../types/page";
 import {
@@ -8,6 +8,18 @@ import {
   ObserveOptions,
   ObserveResult,
 } from "../types/stagehand";
+
+interface UsageData {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  inference_time_ms: number;
+}
+
+interface ObserveResultWithUsage {
+  elements: ObserveResult[];
+  usage: UsageData;
+}
 import { StagehandAPI } from "./api";
 import { StagehandActHandler } from "./handlers/actHandler";
 import { StagehandExtractHandler } from "./handlers/extractHandler";
@@ -181,9 +193,12 @@ ${scriptContent} \
   private async _refreshPageFromAPI() {
     if (!this.api) return;
 
-    const sessionId = this.stagehand.sessionId || this.stagehand.browserbaseSessionID;
+    const sessionId =
+      this.stagehand.sessionId || this.stagehand.browserbaseSessionID;
     if (!sessionId) {
-      throw new ProviderSessionNotFoundError("No active session found for page refresh");
+      throw new ProviderSessionNotFoundError(
+        "No active session found for page refresh",
+      );
     }
 
     // TODO: Implement provider-specific page refresh logic
@@ -195,8 +210,8 @@ ${scriptContent} \
       level: 1,
       auxiliary: {
         sessionId: { value: sessionId, type: "string" },
-        providerType: { value: this.stagehand.providerType, type: "string" }
-      }
+        providerType: { value: this.stagehand.providerType, type: "string" },
+      },
     });
 
     // For local provider, we don't need to refresh since browser is local
@@ -249,9 +264,13 @@ ${scriptContent} \
       this.intPage.on("console", (msg) => {
         // Support multiple provider captcha solving patterns
         const text = msg.text();
-        const isFinished = text === "browserbase-solving-finished" || text === "captcha-solving-finished";
-        const isStarted = text === "browserbase-solving-started" || text === "captcha-solving-started";
-        
+        const isFinished =
+          text === "browserbase-solving-finished" ||
+          text === "captcha-solving-finished";
+        const isStarted =
+          text === "browserbase-solving-started" ||
+          text === "captcha-solving-started";
+
         if (isFinished) {
           this.stagehand.log({
             category: "captcha",
@@ -842,7 +861,7 @@ ${scriptContent} \
 
   async observe(
     instructionOrOptions?: string | ObserveOptions,
-  ): Promise<ObserveResult[]> {
+  ): Promise<ObserveResult[] | ObserveResultWithUsage> {
     try {
       if (!this.observeHandler) {
         throw new HandlerNotInitializedError("Observe");
@@ -950,9 +969,20 @@ ${scriptContent} \
           throw e;
         });
 
-      this.stagehand.addToHistory("observe", instructionOrOptions, result);
-
-      return result;
+      // For backward compatibility, check if result has usage data
+      if (Array.isArray(result)) {
+        // Old format: direct array
+        this.stagehand.addToHistory("observe", instructionOrOptions, result);
+        return result;
+      } else {
+        // New format: { elements, usage } - return the full result
+        this.stagehand.addToHistory(
+          "observe",
+          instructionOrOptions,
+          result.elements,
+        );
+        return result;
+      }
     } catch (err: unknown) {
       if (err instanceof StagehandError || err instanceof StagehandAPIError) {
         throw err;

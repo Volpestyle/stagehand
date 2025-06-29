@@ -254,7 +254,22 @@ export class StagehandExtractHandler {
       injectUrls(output, segments, idToUrlMapping);
     }
 
-    return output as z.infer<T>;
+    return {
+      ...output,
+      usage: {
+        prompt_tokens: promptTokens,
+        completion_tokens: completionTokens,
+        total_tokens: promptTokens + completionTokens,
+        inference_time_ms: inferenceTimeMs,
+      },
+    } as z.infer<T> & {
+      usage: {
+        prompt_tokens: number;
+        completion_tokens: number;
+        total_tokens: number;
+        inference_time_ms: number;
+      };
+    };
   }
 }
 

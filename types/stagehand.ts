@@ -5,7 +5,11 @@ import { AvailableModel, ClientOptions } from "./model";
 import { LLMClient } from "../lib/llm/LLMClient";
 import { Cookie } from "playwright";
 import { AgentProviderType } from "./agent";
-import { ProviderType, ProviderConfig, IBrowserProvider } from "./provider";
+import {
+  ProviderType as _ProviderType,
+  ProviderConfig as _ProviderConfig,
+  IBrowserProvider,
+} from "./provider";
 
 export interface ConstructorParams {
   /**
@@ -18,7 +22,7 @@ export interface ConstructorParams {
    */
   apiKey?: string;
   /**
-   * @deprecated Use providerConfig instead  
+   * @deprecated Use providerConfig instead
    * Your project ID (for backwards compatibility)
    */
   projectId?: string;
@@ -134,6 +138,12 @@ export interface ActResult {
   success: boolean;
   message: string;
   action: string;
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+    inference_time_ms: number;
+  };
 }
 
 export interface ExtractOptions<T extends z.AnyZodObject> {

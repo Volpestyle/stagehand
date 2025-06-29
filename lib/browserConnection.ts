@@ -1,19 +1,14 @@
 import { BrowserResult } from "../types/browser";
 import { LogLine } from "../types/log";
 import { LocalBrowserLaunchOptions } from "../types/stagehand";
-import { ProviderType, ProviderConfig, IBrowserProvider } from "../types/provider";
-import { ProviderManager } from "./providers/ProviderManager";
-import {
-  StagehandError,
-  MissingEnvironmentVariableError,
-} from "../types/stagehandErrors";
+import { IBrowserProvider } from "../types/provider";
 
 interface GetBrowserParams {
   provider: IBrowserProvider;
   sessionId?: string;
   headless?: boolean;
   logger: (message: LogLine) => void;
-  
+
   // Backwards compatibility options (unused but kept for compatibility)
   apiKey?: string;
   projectId?: string;
@@ -33,7 +28,7 @@ export async function getBrowserWithProvider(
   const {
     provider: browserProvider,
     sessionId,
-    headless = false,
+    // headless = false, // unused for now
     logger,
     // Backwards compatibility
     browserbaseSessionCreateParams,
@@ -71,7 +66,7 @@ export async function getBrowserWithProvider(
         message: "creating new session",
         level: 1,
       });
-      
+
       const sessionParams = {
         userMetadata: browserbaseSessionCreateParams,
       };
@@ -118,7 +113,6 @@ export async function getBrowserWithProvider(
     });
 
     return result;
-
   } catch (error) {
     logger({
       category: "browser-connection",

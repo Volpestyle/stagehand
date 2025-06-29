@@ -35,7 +35,7 @@ export class ProviderManager {
    */
   static removeProvider(key: string): void {
     const provider = ProviderManager.providers.get(key);
-    
+
     if (provider && provider.cleanup) {
       provider.cleanup().catch((err) => {
         ProviderManager.defaultLogger({
@@ -45,7 +45,7 @@ export class ProviderManager {
         });
       });
     }
-    
+
     ProviderManager.providers.delete(key);
   }
 
@@ -71,7 +71,7 @@ export class ProviderManager {
               message: `Error during provider cleanup: ${err.message}`,
               level: 0,
             });
-          })
+          }),
         );
       }
     }

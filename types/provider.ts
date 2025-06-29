@@ -100,7 +100,7 @@ export interface ProviderConfig {
 export interface IBrowserProvider {
   /** Provider type identifier */
   readonly type: ProviderType;
-  
+
   /** Provider display name */
   readonly name: string;
 
@@ -127,7 +127,11 @@ export interface IBrowserProvider {
   /**
    * Save an artifact to provider storage
    */
-  saveArtifact(sessionId: string, path: string, data: Buffer): Promise<Artifact>;
+  saveArtifact(
+    sessionId: string,
+    path: string,
+    data: Buffer,
+  ): Promise<Artifact>;
 
   /**
    * List artifacts for a session

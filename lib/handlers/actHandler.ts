@@ -223,7 +223,7 @@ export class StagehandActHandler {
         actionOrOptions.variables,
       );
 
-      const observeResults = await observeHandler.observe({
+      const observeResponse = await observeHandler.observe({
         instruction,
         llmClient,
         requestId,
@@ -233,28 +233,98 @@ export class StagehandActHandler {
         iframes: actionOrOptions?.iframes,
       });
 
+      // Extract usage data and elements from the new response format
+      // Handle both new format {elements, usage} and old format (array)
+      const observeResults = Array.isArray(observeResponse)
+        ? observeResponse
+        : observeResponse.elements;
+      const observeUsage =
+        observeResponse &&
+        !Array.isArray(observeResponse) &&
+        observeResponse.usage
+          ? observeResponse.usage
+          : {
+              prompt_tokens: 0,
+              completion_tokens: 0,
+              total_tokens: 0,
+              inference_time_ms: 0,
+            };
+
       if (observeResults.length === 0) {
         return {
           success: false,
           message: `Failed to perform act: No observe results found for action`,
           action,
+          usage: observeUsage,
         };
       }
 
-      const element: ObserveResult = observeResults[0];
+      // Filter out non-actionable elements (like iframes with "not-supported" method)
+      const actionableResults = observeResults.filter(
+        (element) =>
+          !("method" in element) || element.method !== "not-supported",
+      );
 
-      if (actionOrOptions.variables) {
-        Object.keys(actionOrOptions.variables).forEach((key) => {
-          element.arguments = element.arguments.map((arg) =>
-            arg.replace(`%${key}%`, actionOrOptions.variables![key]),
-          );
-        });
+      if (actionableResults.length === 0) {
+        return {
+          success: false,
+          message: `Failed to perform act: No actionable elements found (${observeResults.length} elements detected, but all were non-actionable)`,
+          action,
+          usage: observeUsage,
+        };
       }
 
-      return this.actFromObserveResult(
-        element,
-        actionOrOptions.domSettleTimeoutMs,
-      );
+      // Execute multiple actions in sequence if returned by the LLM
+      let lastResult: ActResult = {
+        success: true,
+        message: "",
+        action,
+      };
+
+      for (let i = 0; i < actionableResults.length; i++) {
+        const element: ObserveResult = actionableResults[i];
+
+        if (actionOrOptions.variables) {
+          Object.keys(actionOrOptions.variables).forEach((key) => {
+            element.arguments = element.arguments.map((arg) =>
+              arg.replace(`%${key}%`, actionOrOptions.variables![key]),
+            );
+          });
+        }
+
+        const result = await this.actFromObserveResult(
+          element,
+          actionOrOptions.domSettleTimeoutMs,
+        );
+
+        // If any action fails, stop and return the failure
+        if (!result.success) {
+          return {
+            success: false,
+            message: `Failed at step ${i + 1}/${actionableResults.length}: ${result.message}`,
+            action,
+            usage: observeUsage,
+          };
+        }
+
+        lastResult = result;
+
+        // Small delay between actions for DOM to settle
+        if (i < actionableResults.length - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+      }
+
+      // Return success with details about multiple actions
+      return {
+        success: true,
+        message:
+          actionableResults.length === 1
+            ? lastResult.message
+            : `Successfully completed ${actionableResults.length} actions: ${actionableResults.map((r) => ("method" in r ? r.method : "action")).join(" → ")}`,
+        action,
+        usage: observeUsage,
+      };
     };
 
     // if no user defined timeoutMs, just do observeAct + actFromObserveResult
@@ -273,6 +343,12 @@ export class StagehandActHandler {
             success: false,
             message: `Action timed out after ${timeoutMs}ms`,
             action,
+            usage: {
+              prompt_tokens: 0,
+              completion_tokens: 0,
+              total_tokens: 0,
+              inference_time_ms: 0,
+            },
           });
         }, timeoutMs);
       }),

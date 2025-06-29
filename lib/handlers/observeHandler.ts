@@ -117,6 +117,29 @@ export class StagehandObserveHandler {
       fromAct: fromAct,
     });
 
+    // Fallback validation: fix malformed elementIds by prepending "0-" if needed
+    observationResponse.elements = observationResponse.elements.map(
+      (element) => {
+        const elementId = element.elementId;
+        // Check if elementId follows the expected "frame-id" format
+        if (!/^\d+-\d+$/.test(elementId)) {
+          // If it's just a number, prepend "0-" for main frame
+          const fixedId = `0-${elementId}`;
+          this.logger({
+            category: "observation",
+            message: "Fixed malformed elementId from LLM",
+            level: 1,
+            auxiliary: {
+              original_id: { value: elementId, type: "string" },
+              fixed_id: { value: fixedId, type: "string" },
+            },
+          });
+          return { ...element, elementId: fixedId };
+        }
+        return element;
+      },
+    );
+
     const {
       prompt_tokens = 0,
       completion_tokens = 0,
@@ -151,7 +174,7 @@ export class StagehandObserveHandler {
       });
     }
 
-    const elementsWithSelectors = await Promise.all(
+    const elementsWithSelectorsRaw = await Promise.all(
       observationResponse.elements.map(async (element) => {
         const { elementId, ...rest } = element;
 
@@ -171,6 +194,10 @@ export class StagehandObserveHandler {
         const lookUpIndex = elementId as EncodedId;
         const xpath = combinedXpathMap[lookUpIndex];
 
+        if (!xpath) {
+          throw new Error(`No xpath mapping found for element: ${elementId}`);
+        }
+
         const trimmedXpath = trimTrailingTextNode(xpath);
 
         if (!trimmedXpath || trimmedXpath === "") {
@@ -179,6 +206,8 @@ export class StagehandObserveHandler {
             message: `Empty xpath returned for element: ${elementId}`,
             level: 1,
           });
+          // Skip this element if xpath is empty
+          return null;
         }
 
         return {
@@ -188,6 +217,11 @@ export class StagehandObserveHandler {
           // backendNodeId: elementId,
         };
       }),
+    );
+
+    // Filter out null values (elements without valid xpaths)
+    const elementsWithSelectors = elementsWithSelectorsRaw.filter(
+      (element) => element !== null,
     );
 
     this.logger({
@@ -206,6 +240,14 @@ export class StagehandObserveHandler {
       await drawObserveOverlay(this.stagehandPage.page, elementsWithSelectors);
     }
 
-    return elementsWithSelectors;
+    return {
+      elements: elementsWithSelectors,
+      usage: {
+        prompt_tokens: prompt_tokens,
+        completion_tokens: completion_tokens,
+        total_tokens: prompt_tokens + completion_tokens,
+        inference_time_ms: inference_time_ms,
+      },
+    };
   }
 }

@@ -1,13 +1,11 @@
-import { Browser, chromium } from "playwright";
-import dotenv from "dotenv";
+import { Browser } from "playwright";
 import fs from "fs";
-import os from "os";
-import path from "path";
+import dotenv from "dotenv";
 import { BrowserResult } from "../types/browser";
 import { EnhancedContext } from "../types/context";
 import { LogLine } from "../types/log";
 import { AvailableModel } from "../types/model";
-import { BrowserContext, Page } from "../types/page";
+import { Page } from "../types/page";
 import {
   ConstructorParams,
   InitResult,
@@ -34,13 +32,16 @@ import { StagehandAgentHandler } from "./handlers/agentHandler";
 import { StagehandOperatorHandler } from "./handlers/operatorHandler";
 import { StagehandLogger } from "./logger";
 import { getBrowserWithProvider } from "./browserConnection";
-import { ProviderType, ProviderConfig, IBrowserProvider, Artifact, ArtifactList } from "./providers";
-import { ProviderManager } from "./providers/ProviderManager";
+import {
+  ProviderType,
+  IBrowserProvider,
+  Artifact,
+  ArtifactList,
+} from "./providers";
 
 import {
   StagehandError,
   StagehandNotInitializedError,
-  MissingEnvironmentVariableError,
   UnsupportedModelError,
   UnsupportedAISDKModelProviderError,
   InvalidAISDKModelFormatError,
@@ -73,38 +74,30 @@ const defaultLogger = async (logLine: LogLine, disablePino?: boolean) => {
  * Legacy getBrowser function for backwards compatibility
  * @deprecated Use getBrowserWithProvider instead
  */
-async function getBrowser(
-  apiKey: string | undefined,
-  projectId: string | undefined,
-  env: "LOCAL" | "BROWSERBASE" = "LOCAL",
-  headless: boolean = false,
-  logger: (message: LogLine) => void,
-  browserbaseSessionCreateParams?: Record<string, unknown>,
-  browserbaseSessionID?: string,
-  localBrowserLaunchOptions?: LocalBrowserLaunchOptions,
+async function _getBrowser(
+  _apiKey: string | undefined,
+  _projectId: string | undefined,
+  _env: "LOCAL" | "BROWSERBASE" = "LOCAL",
+  _headless: boolean = false,
+  _logger: (message: LogLine) => void,
+  _browserbaseSessionCreateParams?: Record<string, unknown>,
+  _browserbaseSessionID?: string,
+  _localBrowserLaunchOptions?: LocalBrowserLaunchOptions,
 ): Promise<BrowserResult> {
-  return getBrowserWithProvider({
-    apiKey,
-    projectId,
-    env,
-    headless,
-    logger,
-    browserbaseSessionCreateParams,
-    browserbaseSessionID,
-    localBrowserLaunchOptions,
-  });
+  throw new StagehandError(
+    "Legacy getBrowser function is no longer supported. Please use the provider-based approach with getBrowserWithProvider().",
+  );
 }
-
 
 export class Stagehand {
   private stagehandPage!: StagehandPage;
   private stagehandContext!: StagehandContext;
-  
+
   // Provider system
   private provider: IBrowserProvider;
   private _providerType: ProviderType;
-  private sessionId?: string;
-  
+  public sessionId?: string;
+
   // Core settings
   public readonly domSettleTimeoutMs: number;
   public readonly debugDom: boolean;
@@ -132,7 +125,7 @@ export class Stagehand {
   private _history: Array<HistoryEntry> = [];
   public readonly experimental: boolean;
   private externalLogger?: (logLine: LogLine) => void;
-  
+
   // Backwards compatibility - deprecated
   /**
    * @deprecated Use sessionId instead
@@ -242,34 +235,32 @@ export class Stagehand {
     this.stagehandMetrics.totalInferenceTimeMs += inferenceTimeMs;
   }
 
-  constructor(
-    {
-      provider,
-      verbose,
-      llmProvider,
-      llmClient,
-      logger,
-      domSettleTimeoutMs,
-      enableCaching,
-      sessionId,
-      modelName,
-      modelClientOptions,
-      systemPrompt,
-      useAPI = true,
-      waitForCaptchaSolves = false,
-      logInferenceToFile = false,
-      selfHeal = false,
-      disablePino,
-      experimental = false,
-      // Backwards compatibility
-      env,
-      apiKey,
-      projectId,
-      browserbaseSessionCreateParams,
-      browserbaseSessionID,
-      localBrowserLaunchOptions,
-    }: ConstructorParams = {},
-  ) {
+  constructor({
+    provider,
+    verbose,
+    llmProvider,
+    llmClient,
+    logger,
+    domSettleTimeoutMs,
+    enableCaching,
+    sessionId,
+    modelName,
+    modelClientOptions,
+    systemPrompt,
+    useAPI = true,
+    waitForCaptchaSolves = false,
+    logInferenceToFile = false,
+    selfHeal = false,
+    disablePino,
+    experimental = false,
+    // Backwards compatibility
+    env,
+    apiKey,
+    projectId,
+    browserbaseSessionCreateParams,
+    browserbaseSessionID,
+    localBrowserLaunchOptions,
+  }: ConstructorParams = {}) {
     this.externalLogger =
       logger || ((logLine: LogLine) => defaultLogger(logLine, disablePino));
 
@@ -291,15 +282,22 @@ export class Stagehand {
       llmProvider || new LLMProvider(this.logger, this.enableCaching);
 
     // Initialize provider system
-    this.initializeProvider(provider, env, apiKey, projectId, localBrowserLaunchOptions);
-    
+    this.initializeProvider(
+      provider,
+      env,
+      apiKey,
+      projectId,
+      localBrowserLaunchOptions,
+    );
+
     // Store backwards compatibility values
     this.apiKey = apiKey ?? process.env.BROWSERBASE_API_KEY;
     this.projectId = projectId ?? process.env.BROWSERBASE_PROJECT_ID;
     this.browserbaseSessionCreateParams = browserbaseSessionCreateParams;
     this.browserbaseSessionID = browserbaseSessionID;
     this.localBrowserLaunchOptions = localBrowserLaunchOptions;
-    this._env = env ?? (this._providerType === "local" ? "LOCAL" : "BROWSERBASE");
+    this._env =
+      env ?? (this._providerType === "local" ? "LOCAL" : "BROWSERBASE");
     this.sessionId = sessionId || browserbaseSessionID;
 
     this.verbose = verbose ?? 0;
@@ -396,9 +394,9 @@ export class Stagehand {
   private initializeProvider(
     provider?: IBrowserProvider,
     env?: "LOCAL" | "BROWSERBASE",
-    apiKey?: string,
-    projectId?: string,
-    localBrowserLaunchOptions?: LocalBrowserLaunchOptions,
+    _apiKey?: string,
+    _projectId?: string,
+    _localBrowserLaunchOptions?: LocalBrowserLaunchOptions,
   ): void {
     if (provider) {
       // Use provided provider instance
@@ -408,20 +406,20 @@ export class Stagehand {
       // Backwards compatibility: create a default provider based on env
       if (env === "BROWSERBASE") {
         this.stagehandLogger.warn(
-          'env: "BROWSERBASE" is deprecated. Please use a provider instance from @wallcrawler/infra-aws package.'
+          'env: "BROWSERBASE" is deprecated. Please use a provider instance from @wallcrawler/infra-aws package.',
         );
       }
-      
+
       // For backwards compatibility, we'll throw an error directing users to use provider packages
       const suggestedProvider = env === "LOCAL" || !env ? "local" : "aws";
       throw new StagehandError(
         `No provider instance provided. Please install and use a provider package:\n` +
-        `- For local: npm install @wallcrawler/infra-local\n` +
-        `- For AWS: npm install @wallcrawler/infra-aws\n\n` +
-        `Example usage:\n` +
-        `import { ${suggestedProvider === "local" ? "LocalProvider" : "AwsProvider"} } from '@wallcrawler/infra-${suggestedProvider}';\n` +
-        `const provider = new ${suggestedProvider === "local" ? "LocalProvider" : "AwsProvider"}(config);\n` +
-        `const stagehand = new Stagehand({ provider });`
+          `- For local: npm install @wallcrawler/infra/local\n` +
+          `- For AWS: npm install @wallcrawler/infra/aws\n\n` +
+          `Example usage:\n` +
+          `import { ${suggestedProvider === "local" ? "LocalProvider" : "AwsProvider"} } from '@wallcrawler/infra/${suggestedProvider}';\n` +
+          `const provider = new ${suggestedProvider === "local" ? "LocalProvider" : "AwsProvider"}(config);\n` +
+          `const stagehand = new Stagehand({ provider });`,
       );
     }
   }
@@ -437,9 +435,12 @@ export class Stagehand {
       try {
         await this.close();
       } catch (err) {
-        this.stagehandLogger.error(`Error ending ${this._providerType} session:`, {
-          error: String(err),
-        });
+        this.stagehandLogger.error(
+          `Error ending ${this._providerType} session:`,
+          {
+            error: String(err),
+          },
+        );
       } finally {
         // Exit explicitly once cleanup is done
         process.exit(0);
@@ -510,31 +511,38 @@ export class Stagehand {
       this.browserbaseSessionID = sessionId;
     }
 
-    const { provider, browser, context, debugUrl, sessionUrl, contextPath, sessionId } =
-      await getBrowserWithProvider({
-        provider: this.provider,
-        sessionId: this.sessionId,
-        headless: this.headless,
-        logger: this.logger,
-        // Backwards compatibility
-        apiKey: this.apiKey,
-        projectId: this.projectId,
-        env: this._env,
-        browserbaseSessionCreateParams: this.browserbaseSessionCreateParams,
-        browserbaseSessionID: this.browserbaseSessionID,
-        localBrowserLaunchOptions: this.localBrowserLaunchOptions,
-      }).catch((e) => {
-        this.stagehandLogger.error("Error in init:", { error: String(e) });
-        const br: BrowserResult = {
-          provider: this._providerType,
-          context: undefined,
-          debugUrl: undefined,
-          sessionUrl: undefined,
-          sessionId: undefined,
-          env: this.env,
-        };
-        return br;
-      });
+    const {
+      provider: _provider,
+      browser,
+      context,
+      debugUrl,
+      sessionUrl,
+      contextPath,
+      sessionId,
+    } = await getBrowserWithProvider({
+      provider: this.provider,
+      sessionId: this.sessionId,
+      headless: this.headless,
+      logger: this.logger,
+      // Backwards compatibility
+      apiKey: this.apiKey,
+      projectId: this.projectId,
+      env: this._env,
+      browserbaseSessionCreateParams: this.browserbaseSessionCreateParams,
+      browserbaseSessionID: this.browserbaseSessionID,
+      localBrowserLaunchOptions: this.localBrowserLaunchOptions,
+    }).catch((e) => {
+      this.stagehandLogger.error("Error in init:", { error: String(e) });
+      const br: BrowserResult = {
+        provider: this._providerType,
+        context: undefined,
+        debugUrl: undefined,
+        sessionUrl: undefined,
+        sessionId: undefined,
+        env: this.env,
+      };
+      return br;
+    });
     this.contextPath = contextPath;
     this._browser = browser;
     if (!context) {
@@ -732,7 +740,9 @@ export class Stagehand {
     }
 
     if (!this.provider) {
-      throw new StagehandError("Provider not initialized - cannot save artifact");
+      throw new StagehandError(
+        "Provider not initialized - cannot save artifact",
+      );
     }
 
     this.log({
@@ -747,8 +757,12 @@ export class Stagehand {
     });
 
     try {
-      const artifact = await this.provider.saveArtifact(this.sessionId, filePath, data);
-      
+      const artifact = await this.provider.saveArtifact(
+        this.sessionId,
+        filePath,
+        data,
+      );
+
       this.log({
         category: "artifact",
         message: "artifact saved successfully",
@@ -785,7 +799,9 @@ export class Stagehand {
     }
 
     if (!this.provider) {
-      throw new StagehandError("Provider not initialized - cannot list artifacts");
+      throw new StagehandError(
+        "Provider not initialized - cannot list artifacts",
+      );
     }
 
     this.log({
@@ -799,15 +815,24 @@ export class Stagehand {
     });
 
     try {
-      const artifactList = await this.provider.getArtifacts(this.sessionId, cursor);
-      
+      const artifactList = await this.provider.getArtifacts(
+        this.sessionId,
+        cursor,
+      );
+
       this.log({
         category: "artifact",
         message: "artifacts listed successfully",
         level: 1,
         auxiliary: {
-          count: { value: artifactList.artifacts.length.toString(), type: "integer" },
-          totalCount: { value: artifactList.totalCount.toString(), type: "integer" },
+          count: {
+            value: artifactList.artifacts.length.toString(),
+            type: "integer",
+          },
+          totalCount: {
+            value: artifactList.totalCount.toString(),
+            type: "integer",
+          },
           hasMore: { value: artifactList.hasMore.toString(), type: "boolean" },
         },
       });
@@ -837,7 +862,9 @@ export class Stagehand {
     }
 
     if (!this.provider) {
-      throw new StagehandError("Provider not initialized - cannot download artifact");
+      throw new StagehandError(
+        "Provider not initialized - cannot download artifact",
+      );
     }
 
     this.log({
@@ -852,8 +879,11 @@ export class Stagehand {
     });
 
     try {
-      const data = await this.provider.downloadArtifact(this.sessionId, artifactId);
-      
+      const data = await this.provider.downloadArtifact(
+        this.sessionId,
+        artifactId,
+      );
+
       this.log({
         category: "artifact",
         message: "artifact downloaded successfully",
@@ -906,15 +936,19 @@ export class Stagehand {
       level: 1,
       auxiliary: {
         type: { value: screenshotOptions.type, type: "string" },
-        fullPage: { value: screenshotOptions.fullPage.toString(), type: "boolean" },
+        fullPage: {
+          value: screenshotOptions.fullPage.toString(),
+          type: "boolean",
+        },
       },
     });
 
     try {
       const screenshotBuffer = await this.page.screenshot(screenshotOptions);
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const fileName = options?.name || `screenshot-${timestamp}.${screenshotOptions.type}`;
-      
+      const fileName =
+        options?.name || `screenshot-${timestamp}.${screenshotOptions.type}`;
+
       return await this.saveArtifact(fileName, Buffer.from(screenshotBuffer));
     } catch (error) {
       this.log({

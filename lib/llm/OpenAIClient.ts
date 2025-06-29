@@ -65,7 +65,6 @@ export class OpenAIClient extends LLMClient {
     // For schema and tools, we add them as user messages.
     let isToolsOverridedForO1 = false;
     if (this.modelName.startsWith("o1") || this.modelName.startsWith("o3")) {
-      /* eslint-disable */
       // Remove unsupported options
       let {
         tool_choice,
@@ -82,7 +81,6 @@ export class OpenAIClient extends LLMClient {
         temperature,
         ...options
       } = options);
-      /* eslint-enable */
       // Remove unsupported options
       options.messages = options.messages.map((message) => ({
         ...message,
@@ -249,13 +247,11 @@ export class OpenAIClient extends LLMClient {
       }
     }
 
-    /* eslint-disable */
     // Remove unsupported options
     const { response_model, ...openAiOptions } = {
       ...optionsWithoutImageAndRequestId,
       model: this.modelName,
     };
-    /* eslint-enable */
 
     logger({
       category: "openai",
