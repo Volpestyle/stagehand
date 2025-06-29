@@ -1,18 +1,18 @@
-import { StagehandPage } from "../StagehandPage";
-import { AgentProvider } from "../agent/AgentProvider";
-import { StagehandAgent } from "../agent/StagehandAgent";
-import { AgentClient } from "../agent/AgentClient";
-import { LogLine } from "../../types/log";
-import { Page } from "playwright";
+import { StagehandPage } from '../StagehandPage';
+import { AgentProvider } from '../agent/AgentProvider';
+import { StagehandAgent } from '../agent/StagehandAgent';
+import { AgentClient } from '../agent/AgentClient';
+import { LogLine } from '../../types/log';
+import { Page } from 'playwright';
 import {
   AgentExecuteOptions,
   AgentAction,
   AgentResult,
   AgentHandlerOptions,
   ActionExecutionResult,
-} from "@/types/agent";
-import { Stagehand } from "../index";
-import { StagehandFunctionName } from "@/types/stagehand";
+} from '@/types/agent';
+import { Stagehand } from '../index';
+import { StagehandFunctionName } from '@/types/stagehand';
 
 export class StagehandAgentHandler {
   private stagehand: Stagehand;
@@ -27,7 +27,7 @@ export class StagehandAgentHandler {
     stagehand: Stagehand,
     stagehandPage: StagehandPage,
     logger: (message: LogLine) => void,
-    options: AgentHandlerOptions,
+    options: AgentHandlerOptions
   ) {
     this.stagehand = stagehand;
     this.stagehandPage = stagehandPage;
@@ -41,7 +41,7 @@ export class StagehandAgentHandler {
     const client = this.provider.getClient(
       options.modelName,
       options.clientOptions || {},
-      options.userProvidedInstructions,
+      options.userProvidedInstructions
     );
 
     // Store the client
@@ -61,7 +61,7 @@ export class StagehandAgentHandler {
         fullPage: false,
       });
       // Convert to base64
-      return screenshot.toString("base64");
+      return screenshot.toString('base64');
     });
 
     // Set up action handler for any client type
@@ -69,9 +69,7 @@ export class StagehandAgentHandler {
       // Default delay between actions (1 second if not specified)
       const defaultDelay = 1000;
       // Use specified delay or default
-      const waitBetweenActions =
-        (this.options.clientOptions?.waitBetweenActions as number) ||
-        defaultDelay;
+      const waitBetweenActions = (this.options.clientOptions?.waitBetweenActions as number) || defaultDelay;
 
       try {
         // Try to inject cursor before each action
@@ -94,20 +92,18 @@ export class StagehandAgentHandler {
         try {
           await this.captureAndSendScreenshot();
         } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
+          const errorMessage = error instanceof Error ? error.message : String(error);
           this.logger({
-            category: "agent",
+            category: 'agent',
             message: `Warning: Failed to take screenshot after action: ${errorMessage}. Continuing execution.`,
             level: 1,
           });
           // Continue execution even if screenshot fails
         }
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
         this.logger({
-          category: "agent",
+          category: 'agent',
           message: `Error executing action ${action.type}: ${errorMessage}`,
           level: 0,
         });
@@ -123,27 +119,23 @@ export class StagehandAgentHandler {
   /**
    * Execute a task with the agent
    */
-  async execute(
-    optionsOrInstruction: AgentExecuteOptions | string,
-  ): Promise<AgentResult> {
+  async execute(optionsOrInstruction: AgentExecuteOptions | string): Promise<AgentResult> {
     const options =
-      typeof optionsOrInstruction === "string"
-        ? { instruction: optionsOrInstruction }
-        : optionsOrInstruction;
+      typeof optionsOrInstruction === 'string' ? { instruction: optionsOrInstruction } : optionsOrInstruction;
 
     //Redirect to Google if the URL is empty or about:blank
     const currentUrl = this.stagehandPage.page.url();
-    if (!currentUrl || currentUrl === "about:blank") {
+    if (!currentUrl || currentUrl === 'about:blank') {
       this.logger({
-        category: "agent",
+        category: 'agent',
         message: `Page URL is empty or about:blank. Redirecting to www.google.com...`,
         level: 0,
       });
-      await this.stagehandPage.page.goto("https://www.google.com");
+      await this.stagehandPage.page.goto('https://www.google.com');
     }
 
     this.logger({
-      category: "agent",
+      category: 'agent',
       message: `Executing agent task: ${options.instruction}`,
       level: 1,
     });
@@ -152,10 +144,9 @@ export class StagehandAgentHandler {
     try {
       await this.injectCursor();
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger({
-        category: "agent",
+        category: 'agent',
         message: `Warning: Failed to inject cursor: ${errorMessage}. Continuing with execution.`,
         level: 1,
       });
@@ -167,10 +158,9 @@ export class StagehandAgentHandler {
       try {
         await this.captureAndSendScreenshot();
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
         this.logger({
-          category: "agent",
+          category: 'agent',
           message: `Warning: Failed to take initial screenshot: ${errorMessage}. Continuing with execution.`,
           level: 1,
         });
@@ -185,7 +175,7 @@ export class StagehandAgentHandler {
         StagehandFunctionName.AGENT,
         result.usage.input_tokens,
         result.usage.output_tokens,
-        result.usage.inference_time_ms,
+        result.usage.inference_time_ms
       );
     }
 
@@ -198,13 +188,11 @@ export class StagehandAgentHandler {
   /**
    * Execute a single action on the page
    */
-  private async executeAction(
-    action: AgentAction,
-  ): Promise<ActionExecutionResult> {
+  private async executeAction(action: AgentAction): Promise<ActionExecutionResult> {
     try {
       switch (action.type) {
-        case "click": {
-          const { x, y, button = "left" } = action;
+        case 'click': {
+          const { x, y, button = 'left' } = action;
           // Update cursor position first
           await this.updateCursorPosition(x as number, y as number);
           // Animate the click
@@ -213,23 +201,23 @@ export class StagehandAgentHandler {
           await new Promise((resolve) => setTimeout(resolve, 300));
           // Perform the actual click
           await this.stagehandPage.page.mouse.click(x as number, y as number, {
-            button: button as "left" | "right",
+            button: button as 'left' | 'right',
           });
           const newOpenedTab = await Promise.race([
             new Promise<Page | null>((resolve) => {
-              this.stagehandPage.context.once("page", (page) => resolve(page));
+              this.stagehandPage.context.once('page', (page) => resolve(page));
               setTimeout(() => resolve(null), 1500);
             }),
           ]);
           if (newOpenedTab) {
             this.logger({
-              category: "action",
+              category: 'action',
               message: `New page detected (new tab) with URL. Opening on current page...`,
               level: 1,
               auxiliary: {
                 url: {
                   value: newOpenedTab.url(),
-                  type: "string",
+                  type: 'string',
                 },
               },
             });
@@ -240,7 +228,7 @@ export class StagehandAgentHandler {
           return { success: true };
         }
 
-        case "double_click": {
+        case 'double_click': {
           const { x, y } = action;
           // Update cursor position first
           await this.updateCursorPosition(x as number, y as number);
@@ -253,15 +241,12 @@ export class StagehandAgentHandler {
           // Small delay to see the animation
           await new Promise((resolve) => setTimeout(resolve, 200));
           // Perform the actual double click
-          await this.stagehandPage.page.mouse.dblclick(
-            x as number,
-            y as number,
-          );
+          await this.stagehandPage.page.mouse.dblclick(x as number, y as number);
           return { success: true };
         }
 
         // Handle the case for "doubleClick" as well for backward compatibility
-        case "doubleClick": {
+        case 'doubleClick': {
           const { x, y } = action;
           // Update cursor position first
           await this.updateCursorPosition(x as number, y as number);
@@ -274,44 +259,41 @@ export class StagehandAgentHandler {
           // Small delay to see the animation
           await new Promise((resolve) => setTimeout(resolve, 200));
           // Perform the actual double click
-          await this.stagehandPage.page.mouse.dblclick(
-            x as number,
-            y as number,
-          );
+          await this.stagehandPage.page.mouse.dblclick(x as number, y as number);
           return { success: true };
         }
 
-        case "type": {
+        case 'type': {
           const { text } = action;
           await this.stagehandPage.page.keyboard.type(text as string);
           return { success: true };
         }
 
-        case "keypress": {
+        case 'keypress': {
           const { keys } = action;
           if (Array.isArray(keys)) {
             for (const key of keys) {
               // Handle special keys
-              if (key.includes("ENTER")) {
-                await this.stagehandPage.page.keyboard.press("Enter");
-              } else if (key.includes("SPACE")) {
-                await this.stagehandPage.page.keyboard.press(" ");
-              } else if (key.includes("TAB")) {
-                await this.stagehandPage.page.keyboard.press("Tab");
-              } else if (key.includes("ESCAPE") || key.includes("ESC")) {
-                await this.stagehandPage.page.keyboard.press("Escape");
-              } else if (key.includes("BACKSPACE")) {
-                await this.stagehandPage.page.keyboard.press("Backspace");
-              } else if (key.includes("DELETE")) {
-                await this.stagehandPage.page.keyboard.press("Delete");
-              } else if (key.includes("ARROW_UP")) {
-                await this.stagehandPage.page.keyboard.press("ArrowUp");
-              } else if (key.includes("ARROW_DOWN")) {
-                await this.stagehandPage.page.keyboard.press("ArrowDown");
-              } else if (key.includes("ARROW_LEFT")) {
-                await this.stagehandPage.page.keyboard.press("ArrowLeft");
-              } else if (key.includes("ARROW_RIGHT")) {
-                await this.stagehandPage.page.keyboard.press("ArrowRight");
+              if (key.includes('ENTER')) {
+                await this.stagehandPage.page.keyboard.press('Enter');
+              } else if (key.includes('SPACE')) {
+                await this.stagehandPage.page.keyboard.press(' ');
+              } else if (key.includes('TAB')) {
+                await this.stagehandPage.page.keyboard.press('Tab');
+              } else if (key.includes('ESCAPE') || key.includes('ESC')) {
+                await this.stagehandPage.page.keyboard.press('Escape');
+              } else if (key.includes('BACKSPACE')) {
+                await this.stagehandPage.page.keyboard.press('Backspace');
+              } else if (key.includes('DELETE')) {
+                await this.stagehandPage.page.keyboard.press('Delete');
+              } else if (key.includes('ARROW_UP')) {
+                await this.stagehandPage.page.keyboard.press('ArrowUp');
+              } else if (key.includes('ARROW_DOWN')) {
+                await this.stagehandPage.page.keyboard.press('ArrowDown');
+              } else if (key.includes('ARROW_LEFT')) {
+                await this.stagehandPage.page.keyboard.press('ArrowLeft');
+              } else if (key.includes('ARROW_RIGHT')) {
+                await this.stagehandPage.page.keyboard.press('ArrowRight');
               } else {
                 // For other keys, use the existing conversion
                 const playwrightKey = this.convertKeyName(key);
@@ -322,19 +304,19 @@ export class StagehandAgentHandler {
           return { success: true };
         }
 
-        case "scroll": {
+        case 'scroll': {
           const { x, y, scroll_x = 0, scroll_y = 0 } = action;
           // First move to the position
           await this.stagehandPage.page.mouse.move(x as number, y as number);
           // Then scroll
-          await this.stagehandPage.page.evaluate(
-            ({ scrollX, scrollY }) => window.scrollBy(scrollX, scrollY),
-            { scrollX: scroll_x as number, scrollY: scroll_y as number },
-          );
+          await this.stagehandPage.page.evaluate(({ scrollX, scrollY }) => window.scrollBy(scrollX, scrollY), {
+            scrollX: scroll_x as number,
+            scrollY: scroll_y as number,
+          });
           return { success: true };
         }
 
-        case "drag": {
+        case 'drag': {
           const { path } = action;
           if (Array.isArray(path) && path.length >= 2) {
             const start = path[0];
@@ -355,7 +337,7 @@ export class StagehandAgentHandler {
           return { success: true };
         }
 
-        case "move": {
+        case 'move': {
           const { x, y } = action;
           // Update cursor position first
           await this.updateCursorPosition(x as number, y as number);
@@ -363,38 +345,33 @@ export class StagehandAgentHandler {
           return { success: true };
         }
 
-        case "wait": {
+        case 'wait': {
           await new Promise((resolve) => setTimeout(resolve, 1000));
           return { success: true };
         }
 
-        case "screenshot": {
+        case 'screenshot': {
           // Screenshot is handled automatically by the agent client
           // after each action, so we don't need to do anything here
           return { success: true };
         }
 
-        case "function": {
+        case 'function': {
           const { name, arguments: args = {} } = action;
 
-          if (
-            name === "goto" &&
-            typeof args === "object" &&
-            args !== null &&
-            "url" in args
-          ) {
+          if (name === 'goto' && typeof args === 'object' && args !== null && 'url' in args) {
             await this.stagehandPage.page.goto(args.url as string);
             this.updateClientUrl();
             return { success: true };
-          } else if (name === "back") {
+          } else if (name === 'back') {
             await this.stagehandPage.page.goBack();
             this.updateClientUrl();
             return { success: true };
-          } else if (name === "forward") {
+          } else if (name === 'forward') {
             await this.stagehandPage.page.goForward();
             this.updateClientUrl();
             return { success: true };
-          } else if (name === "reload") {
+          } else if (name === 'reload') {
             await this.stagehandPage.page.reload();
             this.updateClientUrl();
             return { success: true };
@@ -406,17 +383,17 @@ export class StagehandAgentHandler {
           };
         }
 
-        case "key": {
+        case 'key': {
           // Handle the 'key' action type from Anthropic
           const { text } = action;
-          if (text === "Return" || text === "Enter") {
-            await this.stagehandPage.page.keyboard.press("Enter");
-          } else if (text === "Tab") {
-            await this.stagehandPage.page.keyboard.press("Tab");
-          } else if (text === "Escape" || text === "Esc") {
-            await this.stagehandPage.page.keyboard.press("Escape");
-          } else if (text === "Backspace") {
-            await this.stagehandPage.page.keyboard.press("Backspace");
+          if (text === 'Return' || text === 'Enter') {
+            await this.stagehandPage.page.keyboard.press('Enter');
+          } else if (text === 'Tab') {
+            await this.stagehandPage.page.keyboard.press('Tab');
+          } else if (text === 'Escape' || text === 'Esc') {
+            await this.stagehandPage.page.keyboard.press('Escape');
+          } else if (text === 'Backspace') {
+            await this.stagehandPage.page.keyboard.press('Backspace');
           } else {
             // For other keys, try to press directly
             await this.stagehandPage.page.keyboard.press(text as string);
@@ -431,11 +408,10 @@ export class StagehandAgentHandler {
           };
       }
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
 
       this.logger({
-        category: "agent",
+        category: 'agent',
         message: `Error executing action ${action.type}: ${errorMessage}`,
         level: 0,
       });
@@ -469,20 +445,20 @@ export class StagehandAgentHandler {
 
   async captureAndSendScreenshot(): Promise<unknown> {
     this.logger({
-      category: "agent",
-      message: "Taking screenshot and sending to agent",
+      category: 'agent',
+      message: 'Taking screenshot and sending to agent',
       level: 1,
     });
 
     try {
       // Take screenshot of the current page
       const screenshot = await this.stagehandPage.page.screenshot({
-        type: "png",
+        type: 'png',
         fullPage: false,
       });
 
       // Convert to base64
-      const base64Image = screenshot.toString("base64");
+      const base64Image = screenshot.toString('base64');
 
       // Just use the captureScreenshot method on the agent client
       return await this.agentClient.captureScreenshot({
@@ -490,10 +466,9 @@ export class StagehandAgentHandler {
         currentUrl: this.stagehandPage.page.url(),
       });
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger({
-        category: "agent",
+        category: 'agent',
         message: `Error capturing screenshot: ${errorMessage}`,
         level: 0,
       });
@@ -507,16 +482,13 @@ export class StagehandAgentHandler {
   private async injectCursor(): Promise<void> {
     try {
       // Define constants for cursor and highlight element IDs
-      const CURSOR_ID = "stagehand-cursor";
-      const HIGHLIGHT_ID = "stagehand-highlight";
+      const CURSOR_ID = 'stagehand-cursor';
+      const HIGHLIGHT_ID = 'stagehand-highlight';
 
       // Check if cursor already exists
-      const cursorExists = await this.stagehandPage.page.evaluate(
-        (id: string) => {
-          return !!document.getElementById(id);
-        },
-        CURSOR_ID,
-      );
+      const cursorExists = await this.stagehandPage.page.evaluate((id: string) => {
+        return !!document.getElementById(id);
+      }, CURSOR_ID);
 
       if (cursorExists) {
         return;
@@ -590,13 +562,13 @@ export class StagehandAgentHandler {
       `);
 
       this.logger({
-        category: "agent",
-        message: "Cursor injected for visual feedback",
+        category: 'agent',
+        message: 'Cursor injected for visual feedback',
         level: 1,
       });
     } catch (error) {
       this.logger({
-        category: "agent",
+        category: 'agent',
         message: `Failed to inject cursor: ${error}`,
         level: 0,
       });
@@ -616,7 +588,7 @@ export class StagehandAgentHandler {
             (window as any).__updateCursorPosition(x, y);
           }
         },
-        { x, y },
+        { x, y }
       );
     } catch {
       // Silently fail if cursor update fails
@@ -637,7 +609,7 @@ export class StagehandAgentHandler {
             (window as any).__animateClick(x, y);
           }
         },
-        { x, y },
+        { x, y }
       );
     } catch {
       // Silently fail if animation fails
@@ -648,31 +620,31 @@ export class StagehandAgentHandler {
   private convertKeyName(key: string): string {
     // Map of CUA key names to Playwright key names
     const keyMap: Record<string, string> = {
-      ENTER: "Enter",
-      ESCAPE: "Escape",
-      BACKSPACE: "Backspace",
-      TAB: "Tab",
-      SPACE: " ",
-      ARROWUP: "ArrowUp",
-      ARROWDOWN: "ArrowDown",
-      ARROWLEFT: "ArrowLeft",
-      ARROWRIGHT: "ArrowRight",
-      UP: "ArrowUp",
-      DOWN: "ArrowDown",
-      LEFT: "ArrowLeft",
-      RIGHT: "ArrowRight",
-      SHIFT: "Shift",
-      CONTROL: "Control",
-      ALT: "Alt",
-      META: "Meta",
-      COMMAND: "Meta",
-      CMD: "Meta",
-      CTRL: "Control",
-      DELETE: "Delete",
-      HOME: "Home",
-      END: "End",
-      PAGEUP: "PageUp",
-      PAGEDOWN: "PageDown",
+      ENTER: 'Enter',
+      ESCAPE: 'Escape',
+      BACKSPACE: 'Backspace',
+      TAB: 'Tab',
+      SPACE: ' ',
+      ARROWUP: 'ArrowUp',
+      ARROWDOWN: 'ArrowDown',
+      ARROWLEFT: 'ArrowLeft',
+      ARROWRIGHT: 'ArrowRight',
+      UP: 'ArrowUp',
+      DOWN: 'ArrowDown',
+      LEFT: 'ArrowLeft',
+      RIGHT: 'ArrowRight',
+      SHIFT: 'Shift',
+      CONTROL: 'Control',
+      ALT: 'Alt',
+      META: 'Meta',
+      COMMAND: 'Meta',
+      CMD: 'Meta',
+      CTRL: 'Control',
+      DELETE: 'Delete',
+      HOME: 'Home',
+      END: 'End',
+      PAGEUP: 'PageUp',
+      PAGEDOWN: 'PageDown',
     };
 
     // Convert to uppercase for case-insensitive matching

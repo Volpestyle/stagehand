@@ -1,19 +1,14 @@
-import OpenAI from "openai";
-import type { ClientOptions } from "openai";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { LogLine } from "../../types/log";
-import { AvailableModel } from "../../types/model";
-import { LLMCache } from "../cache/LLMCache";
-import {
-  ChatMessage,
-  CreateChatCompletionOptions,
-  LLMClient,
-  LLMResponse,
-} from "./LLMClient";
-import { CreateChatCompletionResponseError } from "@/types/stagehandErrors";
+import OpenAI from 'openai';
+import type { ClientOptions } from 'openai';
+import { zodToJsonSchema } from 'zod-to-json-schema';
+import { LogLine } from '../../types/log';
+import { AvailableModel } from '../../types/model';
+import { LLMCache } from '../cache/LLMCache';
+import { ChatMessage, CreateChatCompletionOptions, LLMClient, LLMResponse } from './LLMClient';
+import { CreateChatCompletionResponseError } from '@/types/stagehandErrors';
 
 export class CerebrasClient extends LLMClient {
-  public type = "cerebras" as const;
+  public type = 'cerebras' as const;
   private client: OpenAI;
   private cache: LLMCache | undefined;
   private enableCaching: boolean;
@@ -38,7 +33,7 @@ export class CerebrasClient extends LLMClient {
 
     // Create OpenAI client with the base URL set to Cerebras API
     this.client = new OpenAI({
-      baseURL: "https://api.cerebras.ai/v1",
+      baseURL: 'https://api.cerebras.ai/v1',
       apiKey: clientOptions?.apiKey || process.env.CEREBRAS_API_KEY,
       ...clientOptions,
     });
@@ -49,29 +44,25 @@ export class CerebrasClient extends LLMClient {
     this.clientOptions = clientOptions;
   }
 
-  async createChatCompletion<T = LLMResponse>({
-    options,
-    retries,
-    logger,
-  }: CreateChatCompletionOptions): Promise<T> {
+  async createChatCompletion<T = LLMResponse>({ options, retries, logger }: CreateChatCompletionOptions): Promise<T> {
     const optionsWithoutImage = { ...options };
     delete optionsWithoutImage.image;
 
     logger({
-      category: "cerebras",
-      message: "creating chat completion",
+      category: 'cerebras',
+      message: 'creating chat completion',
       level: 2,
       auxiliary: {
         options: {
           value: JSON.stringify(optionsWithoutImage),
-          type: "object",
+          type: 'object',
         },
       },
     });
 
     // Try to get cached response
     const cacheOptions = {
-      model: this.modelName.split("cerebras-")[1],
+      model: this.modelName.split('cerebras-')[1],
       messages: options.messages,
       temperature: options.temperature,
       response_model: options.response_model,
@@ -80,27 +71,24 @@ export class CerebrasClient extends LLMClient {
     };
 
     if (this.enableCaching) {
-      const cachedResponse = await this.cache.get<T>(
-        cacheOptions,
-        options.requestId,
-      );
+      const cachedResponse = await this.cache.get<T>(cacheOptions, options.requestId);
       if (cachedResponse) {
         logger({
-          category: "llm_cache",
-          message: "LLM cache hit - returning cached response",
+          category: 'llm_cache',
+          message: 'LLM cache hit - returning cached response',
           level: 1,
           auxiliary: {
             cachedResponse: {
               value: JSON.stringify(cachedResponse),
-              type: "object",
+              type: 'object',
             },
             requestId: {
               value: options.requestId,
-              type: "string",
+              type: 'string',
             },
             cacheOptions: {
               value: JSON.stringify(cacheOptions),
-              type: "object",
+              type: 'object',
             },
           },
         });
@@ -112,34 +100,32 @@ export class CerebrasClient extends LLMClient {
     const formattedMessages = options.messages.map((msg: ChatMessage) => {
       const baseMessage = {
         content:
-          typeof msg.content === "string"
+          typeof msg.content === 'string'
             ? msg.content
-            : Array.isArray(msg.content) &&
-                msg.content.length > 0 &&
-                "text" in msg.content[0]
+            : Array.isArray(msg.content) && msg.content.length > 0 && 'text' in msg.content[0]
               ? msg.content[0].text
-              : "",
+              : '',
       };
 
       // Cerebras only supports system, user, and assistant roles
-      if (msg.role === "system") {
-        return { ...baseMessage, role: "system" as const };
-      } else if (msg.role === "assistant") {
-        return { ...baseMessage, role: "assistant" as const };
+      if (msg.role === 'system') {
+        return { ...baseMessage, role: 'system' as const };
+      } else if (msg.role === 'assistant') {
+        return { ...baseMessage, role: 'assistant' as const };
       } else {
         // Default to user for any other role
-        return { ...baseMessage, role: "user" as const };
+        return { ...baseMessage, role: 'user' as const };
       }
     });
 
     // Format tools if provided
     let tools = options.tools?.map((tool) => ({
-      type: "function" as const,
+      type: 'function' as const,
       function: {
         name: tool.name,
         description: tool.description,
         parameters: {
-          type: "object",
+          type: 'object',
           properties: tool.parameters.properties,
           required: tool.parameters.required,
         },
@@ -156,13 +142,12 @@ export class CerebrasClient extends LLMClient {
       const schemaRequired = jsonSchema.required || [];
 
       const responseTool = {
-        type: "function" as const,
+        type: 'function' as const,
         function: {
-          name: "print_extracted_data",
-          description:
-            "Prints the extracted data based on the provided schema.",
+          name: 'print_extracted_data',
+          description: 'Prints the extracted data based on the provided schema.',
           parameters: {
-            type: "object",
+            type: 'object',
             properties: schemaProperties,
             required: schemaRequired,
           },
@@ -175,16 +160,16 @@ export class CerebrasClient extends LLMClient {
     try {
       // Use OpenAI client with Cerebras API
       const apiResponse = await this.client.chat.completions.create({
-        model: this.modelName.split("cerebras-")[1],
+        model: this.modelName.split('cerebras-')[1],
         messages: [
           ...formattedMessages,
           // Add explicit instruction to return JSON if we have a response model
           ...(options.response_model
             ? [
                 {
-                  role: "system" as const,
+                  role: 'system' as const,
                   content: `IMPORTANT: Your response must be valid JSON that matches this schema: ${JSON.stringify(
-                    options.response_model.schema,
+                    options.response_model.schema
                   )}`,
                 },
               ]
@@ -193,24 +178,24 @@ export class CerebrasClient extends LLMClient {
         temperature: options.temperature || 0.7,
         max_tokens: options.maxTokens,
         tools: tools,
-        tool_choice: options.tool_choice || "auto",
+        tool_choice: options.tool_choice || 'auto',
       });
 
       // Format the response to match the expected LLMResponse format
       const response: LLMResponse = {
         id: apiResponse.id,
-        object: "chat.completion",
+        object: 'chat.completion',
         created: Date.now(),
-        model: this.modelName.split("cerebras-")[1],
+        model: this.modelName.split('cerebras-')[1],
         choices: [
           {
             index: 0,
             message: {
-              role: "assistant",
+              role: 'assistant',
               content: apiResponse.choices[0]?.message?.content || null,
               tool_calls: apiResponse.choices[0]?.message?.tool_calls || [],
             },
-            finish_reason: apiResponse.choices[0]?.finish_reason || "stop",
+            finish_reason: apiResponse.choices[0]?.finish_reason || 'stop',
           },
         ],
         usage: {
@@ -221,17 +206,17 @@ export class CerebrasClient extends LLMClient {
       };
 
       logger({
-        category: "cerebras",
-        message: "response",
+        category: 'cerebras',
+        message: 'response',
         level: 2,
         auxiliary: {
           response: {
             value: JSON.stringify(response),
-            type: "object",
+            type: 'object',
           },
           requestId: {
             value: options.requestId,
-            type: "string",
+            type: 'string',
           },
         },
       });
@@ -254,22 +239,18 @@ export class CerebrasClient extends LLMClient {
             usage: response.usage,
           };
           if (this.enableCaching) {
-            await this.cache.set(
-              cacheOptions,
-              finalResponse,
-              options.requestId,
-            );
+            await this.cache.set(cacheOptions, finalResponse, options.requestId);
           }
           return finalResponse as T;
         } catch (e) {
           logger({
-            category: "cerebras",
-            message: "failed to parse tool call arguments as JSON, retrying",
+            category: 'cerebras',
+            message: 'failed to parse tool call arguments as JSON, retrying',
             level: 0,
             auxiliary: {
               error: {
                 value: e.message,
-                type: "string",
+                type: 'string',
               },
             },
           });
@@ -288,23 +269,19 @@ export class CerebrasClient extends LLMClient {
               usage: response.usage,
             };
             if (this.enableCaching) {
-              await this.cache.set(
-                cacheOptions,
-                finalResponse,
-                options.requestId,
-              );
+              await this.cache.set(cacheOptions, finalResponse, options.requestId);
             }
             return finalResponse as T;
           }
         } catch (e) {
           logger({
-            category: "cerebras",
-            message: "failed to parse content as JSON",
+            category: 'cerebras',
+            message: 'failed to parse content as JSON',
             level: 0,
             auxiliary: {
               error: {
                 value: e.message,
-                type: "string",
+                type: 'string',
               },
             },
           });
@@ -320,20 +297,20 @@ export class CerebrasClient extends LLMClient {
         });
       }
 
-      throw new CreateChatCompletionResponseError("Invalid response schema");
+      throw new CreateChatCompletionResponseError('Invalid response schema');
     } catch (error) {
       logger({
-        category: "cerebras",
-        message: "error creating chat completion",
+        category: 'cerebras',
+        message: 'error creating chat completion',
         level: 0,
         auxiliary: {
           error: {
             value: error.message,
-            type: "string",
+            type: 'string',
           },
           requestId: {
             value: options.requestId,
-            type: "string",
+            type: 'string',
           },
         },
       });

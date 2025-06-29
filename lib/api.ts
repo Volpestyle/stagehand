@@ -1,14 +1,14 @@
-import { z } from "zod";
-import zodToJsonSchema from "zod-to-json-schema";
+import { z } from 'zod';
+import zodToJsonSchema from 'zod-to-json-schema';
 import {
   ApiResponse,
   ExecuteActionParams,
   StagehandAPIConstructorParams,
   StartSessionParams,
   StartSessionResult,
-} from "../types/api";
-import { LogLine } from "../types/log";
-import { GotoOptions } from "../types/playwright";
+} from '../types/api';
+import { LogLine } from '../types/log';
+import { GotoOptions } from '../types/playwright';
 import {
   ActOptions,
   ActResult,
@@ -17,8 +17,8 @@ import {
   ExtractResult,
   ObserveOptions,
   ObserveResult,
-} from "../types/stagehand";
-import { AgentExecuteOptions, AgentResult } from ".";
+} from '../types/stagehand';
+import { AgentExecuteOptions, AgentResult } from '.';
 import {
   StagehandAPIUnauthorizedError,
   StagehandHttpError,
@@ -26,8 +26,8 @@ import {
   StagehandServerError,
   StagehandResponseBodyError,
   StagehandResponseParseError,
-} from "../types/stagehandApiErrors";
-import makeFetchCookie from "fetch-cookie";
+} from '../types/stagehandApiErrors';
+import makeFetchCookie from 'fetch-cookie';
 
 export class StagehandAPI {
   private apiKey: string;
@@ -59,16 +59,16 @@ export class StagehandAPI {
     browserbaseSessionID,
   }: StartSessionParams): Promise<StartSessionResult> {
     if (!modelApiKey) {
-      throw new StagehandAPIError("modelApiKey is required");
+      throw new StagehandAPIError('modelApiKey is required');
     }
     this.modelApiKey = modelApiKey;
 
     const region = browserbaseSessionCreateParams?.region;
-    if (region && region !== "us-west-2") {
+    if (region && region !== 'us-west-2') {
       return { sessionId: browserbaseSessionID ?? null, available: false };
     }
-    const sessionResponse = await this.request("/sessions/start", {
-      method: "POST",
+    const sessionResponse = await this.request('/sessions/start', {
+      method: 'POST',
       body: JSON.stringify({
         modelName,
         domSettleTimeoutMs,
@@ -85,15 +85,14 @@ export class StagehandAPI {
 
     if (sessionResponse.status === 401) {
       throw new StagehandAPIUnauthorizedError(
-        "Unauthorized. Ensure you provided a valid API key and that it is whitelisted.",
+        'Unauthorized. Ensure you provided a valid API key and that it is whitelisted.'
       );
     } else if (sessionResponse.status !== 200) {
       console.log(await sessionResponse.text());
       throw new StagehandHttpError(`Unknown error: ${sessionResponse.status}`);
     }
 
-    const sessionResponseBody =
-      (await sessionResponse.json()) as ApiResponse<StartSessionResult>;
+    const sessionResponseBody = (await sessionResponse.json()) as ApiResponse<StartSessionResult>;
 
     if (sessionResponseBody.success === false) {
       throw new StagehandAPIError(sessionResponseBody.message);
@@ -111,47 +110,42 @@ export class StagehandAPI {
 
   async act(options: ActOptions | ObserveResult): Promise<ActResult> {
     return this.execute<ActResult>({
-      method: "act",
+      method: 'act',
       args: { ...options },
     });
   }
 
-  async extract<T extends z.AnyZodObject>(
-    options: ExtractOptions<T>,
-  ): Promise<ExtractResult<T>> {
+  async extract<T extends z.AnyZodObject>(options: ExtractOptions<T>): Promise<ExtractResult<T>> {
     if (!options.schema) {
       return this.execute<ExtractResult<T>>({
-        method: "extract",
+        method: 'extract',
         args: {},
       });
     }
     const parsedSchema = zodToJsonSchema(options.schema);
     return this.execute<ExtractResult<T>>({
-      method: "extract",
+      method: 'extract',
       args: { ...options, schemaDefinition: parsedSchema },
     });
   }
 
   async observe(options?: ObserveOptions): Promise<ObserveResult[]> {
     return this.execute<ObserveResult[]>({
-      method: "observe",
+      method: 'observe',
       args: { ...options },
     });
   }
 
   async goto(url: string, options?: GotoOptions): Promise<void> {
     return this.execute<void>({
-      method: "navigate",
+      method: 'navigate',
       args: { url, options },
     });
   }
 
-  async agentExecute(
-    agentConfig: AgentConfig,
-    executeOptions: AgentExecuteOptions,
-  ): Promise<AgentResult> {
+  async agentExecute(agentConfig: AgentConfig, executeOptions: AgentExecuteOptions): Promise<AgentResult> {
     return this.execute<AgentResult>({
-      method: "agentExecute",
+      method: 'agentExecute',
       args: { agentConfig, executeOptions },
     });
   }
@@ -159,30 +153,24 @@ export class StagehandAPI {
   async end(): Promise<Response> {
     const url = `/sessions/${this.sessionId}/end`;
     const response = await this.request(url, {
-      method: "POST",
+      method: 'POST',
     });
     return response;
   }
 
-  private async execute<T>({
-    method,
-    args,
-    params,
-  }: ExecuteActionParams): Promise<T> {
+  private async execute<T>({ method, args, params }: ExecuteActionParams): Promise<T> {
     const urlParams = new URLSearchParams(params as Record<string, string>);
     const queryString = urlParams.toString();
-    const url = `/sessions/${this.sessionId}/${method}${queryString ? `?${queryString}` : ""}`;
+    const url = `/sessions/${this.sessionId}/${method}${queryString ? `?${queryString}` : ''}`;
 
     const response = await this.request(url, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify(args),
     });
 
     if (!response.ok) {
       const errorBody = await response.text();
-      throw new StagehandHttpError(
-        `HTTP error! status: ${response.status}, body: ${errorBody}`,
-      );
+      throw new StagehandHttpError(`HTTP error! status: ${response.status}, body: ${errorBody}`);
     }
 
     if (!response.body) {
@@ -191,7 +179,7 @@ export class StagehandAPI {
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
-    let buffer = "";
+    let buffer = '';
 
     while (true) {
       const { value, done } = await reader.read();
@@ -201,30 +189,28 @@ export class StagehandAPI {
       }
 
       buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n\n");
-      buffer = lines.pop() || "";
+      const lines = buffer.split('\n\n');
+      buffer = lines.pop() || '';
 
       for (const line of lines) {
-        if (!line.startsWith("data: ")) continue;
+        if (!line.startsWith('data: ')) continue;
 
         try {
           const eventData = JSON.parse(line.slice(6));
 
-          if (eventData.type === "system") {
-            if (eventData.data.status === "error") {
+          if (eventData.type === 'system') {
+            if (eventData.data.status === 'error') {
               throw new StagehandServerError(eventData.data.error);
             }
-            if (eventData.data.status === "finished") {
+            if (eventData.data.status === 'finished') {
               return eventData.data.result as T;
             }
-          } else if (eventData.type === "log") {
+          } else if (eventData.type === 'log') {
             this.logger(eventData.data.message);
           }
         } catch (e) {
-          console.error("Error parsing event data:", e);
-          throw new StagehandResponseParseError(
-            "Failed to parse server response",
-          );
+          console.error('Error parsing event data:', e);
+          throw new StagehandResponseParseError('Failed to parse server response');
         }
       }
 
@@ -232,34 +218,31 @@ export class StagehandAPI {
     }
   }
 
-  private async request(
-    path: string,
-    options: RequestInit = {},
-  ): Promise<Response> {
+  private async request(path: string, options: RequestInit = {}): Promise<Response> {
     const defaultHeaders: Record<string, string> = {
-      "x-bb-api-key": this.apiKey,
-      "x-bb-project-id": this.projectId,
-      "x-bb-session-id": this.sessionId,
+      'x-bb-api-key': this.apiKey,
+      'x-bb-project-id': this.projectId,
+      'x-bb-session-id': this.sessionId,
       // we want real-time logs, so we stream the response
-      "x-stream-response": "true",
-      "x-model-api-key": this.modelApiKey,
-      "x-sent-at": new Date().toISOString(),
-      "x-language": "typescript",
+      'x-stream-response': 'true',
+      'x-model-api-key': this.modelApiKey,
+      'x-sent-at': new Date().toISOString(),
+      'x-language': 'typescript',
     };
 
-    if (options.method === "POST" && options.body) {
-      defaultHeaders["Content-Type"] = "application/json";
+    if (options.method === 'POST' && options.body) {
+      defaultHeaders['Content-Type'] = 'application/json';
     }
 
     const response = await this.fetchWithCookies(
-      `${process.env.STAGEHAND_API_URL ?? "https://api.stagehand.browserbase.com/v1"}${path}`,
+      `${process.env.STAGEHAND_API_URL ?? 'https://api.stagehand.browserbase.com/v1'}${path}`,
       {
         ...options,
         headers: {
           ...defaultHeaders,
           ...options.headers,
         },
-      },
+      }
     );
 
     return response;

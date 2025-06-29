@@ -8,9 +8,9 @@ export type LogLevel = 0 | 1 | 2;
  * 2 - debug - Detailed information for debugging
  */
 export const LOG_LEVEL_NAMES: Record<LogLevel, string> = {
-  0: "error",
-  1: "info",
-  2: "debug",
+  0: 'error',
+  1: 'info',
+  2: 'debug',
 };
 
 export type LogLine = {
@@ -22,7 +22,7 @@ export type LogLine = {
   auxiliary?: {
     [key: string]: {
       value: string;
-      type: "object" | "string" | "html" | "integer" | "float" | "boolean";
+      type: 'object' | 'string' | 'html' | 'integer' | 'float' | 'boolean';
     };
   };
 };

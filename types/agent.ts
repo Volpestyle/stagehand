@@ -1,4 +1,4 @@
-import { LogLine } from "./log";
+import { LogLine } from './log';
 
 export interface AgentAction {
   type: string;
@@ -29,7 +29,7 @@ export interface AgentExecuteOptions extends AgentOptions {
   instruction: string;
 }
 
-export type AgentProviderType = "openai" | "anthropic";
+export type AgentProviderType = 'openai' | 'anthropic';
 
 export interface AgentClientOptions {
   apiKey: string;
@@ -39,7 +39,7 @@ export interface AgentClientOptions {
   [key: string]: unknown;
 }
 
-export type AgentType = "openai" | "anthropic";
+export type AgentType = 'openai' | 'anthropic';
 
 export interface AgentExecutionOptions {
   options: AgentExecuteOptions;
@@ -63,7 +63,7 @@ export interface ActionExecutionResult {
 // Anthropic types:
 
 export interface ToolUseItem extends ResponseItem {
-  type: "tool_use";
+  type: 'tool_use';
   id: string; // This is the correct property name from Anthropic's API
   name: string; // Name of the tool being used
   input: Record<string, unknown>;
@@ -80,12 +80,12 @@ export interface AnthropicContentBlock {
 }
 
 export interface AnthropicTextBlock extends AnthropicContentBlock {
-  type: "text";
+  type: 'text';
   text: string;
 }
 
 export interface AnthropicToolResult {
-  type: "tool_result";
+  type: 'tool_result';
   tool_use_id: string;
   content: string | Array<AnthropicContentBlock>;
 }
@@ -99,7 +99,7 @@ export interface ResponseItem {
 }
 
 export interface ComputerCallItem extends ResponseItem {
-  type: "computer_call";
+  type: 'computer_call';
   call_id: string;
   action: {
     type: string;
@@ -113,7 +113,7 @@ export interface ComputerCallItem extends ResponseItem {
 }
 
 export interface FunctionCallItem extends ResponseItem {
-  type: "function_call";
+  type: 'function_call';
   call_id: string;
   name: string;
   arguments: string;
@@ -122,11 +122,11 @@ export interface FunctionCallItem extends ResponseItem {
 export type ResponseInputItem =
   | { role: string; content: string }
   | {
-      type: "computer_call_output";
+      type: 'computer_call_output';
       call_id: string;
       output:
         | {
-            type: "input_image";
+            type: 'input_image';
             image_url: string;
             current_url?: string;
             error?: string;
@@ -140,7 +140,7 @@ export type ResponseInputItem =
       }>;
     }
   | {
-      type: "function_call_output";
+      type: 'function_call_output';
       call_id: string;
       output: string;
     };

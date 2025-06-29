@@ -1,5 +1,5 @@
-import type { BrowserContext as PlaywrightContext, Frame } from "playwright";
-import { Page } from "../types/page";
+import type { BrowserContext as PlaywrightContext, Frame } from 'playwright';
+import { Page } from '../types/page';
 
 export interface AXNode {
   role?: { value: string };
@@ -62,8 +62,7 @@ export type BackendIdMaps = {
   iframeXPath?: string;
 };
 
-export interface EnhancedContext
-  extends Omit<PlaywrightContext, "newPage" | "pages"> {
+export interface EnhancedContext extends Omit<PlaywrightContext, 'newPage' | 'pages'> {
   newPage(): Promise<Page>;
   pages(): Page[];
 }

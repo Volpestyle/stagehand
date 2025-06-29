@@ -1,5 +1,5 @@
-import OpenAI, { ClientOptions } from "openai";
-import { zodResponseFormat } from "openai/helpers/zod";
+import OpenAI, { ClientOptions } from 'openai';
+import { zodResponseFormat } from 'openai/helpers/zod';
 import {
   ChatCompletionAssistantMessageParam,
   ChatCompletionContentPartImage,
@@ -8,27 +8,17 @@ import {
   ChatCompletionMessageParam,
   ChatCompletionSystemMessageParam,
   ChatCompletionUserMessageParam,
-} from "openai/resources/chat";
-import zodToJsonSchema from "zod-to-json-schema";
-import { LogLine } from "../../types/log";
-import { AvailableModel } from "../../types/model";
-import { LLMCache } from "../cache/LLMCache";
-import { validateZodSchema } from "../utils";
-import {
-  ChatCompletionOptions,
-  ChatMessage,
-  CreateChatCompletionOptions,
-  LLMClient,
-  LLMResponse,
-} from "./LLMClient";
-import {
-  CreateChatCompletionResponseError,
-  StagehandError,
-  ZodSchemaValidationError,
-} from "@/types/stagehandErrors";
+} from 'openai/resources/chat';
+import zodToJsonSchema from 'zod-to-json-schema';
+import { LogLine } from '../../types/log';
+import { AvailableModel } from '../../types/model';
+import { LLMCache } from '../cache/LLMCache';
+import { validateZodSchema } from '../utils';
+import { ChatCompletionOptions, ChatMessage, CreateChatCompletionOptions, LLMClient, LLMResponse } from './LLMClient';
+import { CreateChatCompletionResponseError, StagehandError, ZodSchemaValidationError } from '@/types/stagehandErrors';
 
 export class OpenAIClient extends LLMClient {
-  public type = "openai" as const;
+  public type = 'openai' as const;
   private client: OpenAI;
   private cache: LLMCache | undefined;
   private enableCaching: boolean;
@@ -64,32 +54,17 @@ export class OpenAIClient extends LLMClient {
     // O1 models do not support most of the options. So we override them.
     // For schema and tools, we add them as user messages.
     let isToolsOverridedForO1 = false;
-    if (this.modelName.startsWith("o1") || this.modelName.startsWith("o3")) {
+    if (this.modelName.startsWith('o1') || this.modelName.startsWith('o3')) {
       // Remove unsupported options
-      let {
-        tool_choice,
-        top_p,
-        frequency_penalty,
-        presence_penalty,
-        temperature,
-      } = options;
-      ({
-        tool_choice,
-        top_p,
-        frequency_penalty,
-        presence_penalty,
-        temperature,
-        ...options
-      } = options);
+      let { tool_choice, top_p, frequency_penalty, presence_penalty, temperature } = options;
+      ({ tool_choice, top_p, frequency_penalty, presence_penalty, temperature, ...options } = options);
       // Remove unsupported options
       options.messages = options.messages.map((message) => ({
         ...message,
-        role: "user",
+        role: 'user',
       }));
       if (options.tools && options.response_model) {
-        throw new StagehandError(
-          "Cannot use both tool and response_model for o1 models",
-        );
+        throw new StagehandError('Cannot use both tool and response_model for o1 models');
       }
 
       if (options.tools) {
@@ -98,10 +73,8 @@ export class OpenAIClient extends LLMClient {
         ({ tools, ...options } = options);
         isToolsOverridedForO1 = true;
         options.messages.push({
-          role: "user",
-          content: `You have the following tools available to you:\n${JSON.stringify(
-            tools,
-          )}
+          role: 'user',
+          content: `You have the following tools available to you:\n${JSON.stringify(tools)}
 
           Respond with the following zod schema format to use a method: {
             "name": "<tool_name>",
@@ -112,18 +85,15 @@ export class OpenAIClient extends LLMClient {
         });
       }
     }
-    if (
-      options.temperature &&
-      (this.modelName.startsWith("o1") || this.modelName.startsWith("o3"))
-    ) {
-      throw new StagehandError("Temperature is not supported for o1 models");
+    if (options.temperature && (this.modelName.startsWith('o1') || this.modelName.startsWith('o3'))) {
+      throw new StagehandError('Temperature is not supported for o1 models');
     }
 
     const { image, requestId, ...optionsWithoutImageAndRequestId } = options;
 
     logger({
-      category: "openai",
-      message: "creating chat completion",
+      category: 'openai',
+      message: 'creating chat completion',
       level: 2,
       auxiliary: {
         options: {
@@ -131,11 +101,11 @@ export class OpenAIClient extends LLMClient {
             ...optionsWithoutImageAndRequestId,
             requestId,
           }),
-          type: "object",
+          type: 'object',
         },
         modelName: {
           value: this.modelName,
-          type: "string",
+          type: 'string',
         },
       },
     });
@@ -152,36 +122,33 @@ export class OpenAIClient extends LLMClient {
     };
 
     if (this.enableCaching) {
-      const cachedResponse = await this.cache.get<T>(
-        cacheOptions,
-        options.requestId,
-      );
+      const cachedResponse = await this.cache.get<T>(cacheOptions, options.requestId);
       if (cachedResponse) {
         logger({
-          category: "llm_cache",
-          message: "LLM cache hit - returning cached response",
+          category: 'llm_cache',
+          message: 'LLM cache hit - returning cached response',
           level: 1,
           auxiliary: {
             requestId: {
               value: options.requestId,
-              type: "string",
+              type: 'string',
             },
             cachedResponse: {
               value: JSON.stringify(cachedResponse),
-              type: "object",
+              type: 'object',
             },
           },
         });
         return cachedResponse;
       } else {
         logger({
-          category: "llm_cache",
-          message: "LLM cache miss - no cached response found",
+          category: 'llm_cache',
+          message: 'LLM cache miss - no cached response found',
           level: 1,
           auxiliary: {
             requestId: {
               value: options.requestId,
-              type: "string",
+              type: 'string',
             },
           },
         });
@@ -190,17 +157,15 @@ export class OpenAIClient extends LLMClient {
 
     if (options.image) {
       const screenshotMessage: ChatMessage = {
-        role: "user",
+        role: 'user',
         content: [
           {
-            type: "image_url",
+            type: 'image_url',
             image_url: {
-              url: `data:image/jpeg;base64,${options.image.buffer.toString("base64")}`,
+              url: `data:image/jpeg;base64,${options.image.buffer.toString('base64')}`,
             },
           },
-          ...(options.image.description
-            ? [{ type: "text", text: options.image.description }]
-            : []),
+          ...(options.image.description ? [{ type: 'text', text: options.image.description }] : []),
         ],
       };
 
@@ -210,21 +175,19 @@ export class OpenAIClient extends LLMClient {
     let responseFormat = undefined;
     if (options.response_model) {
       // For O1 models, we need to add the schema as a user message.
-      if (this.modelName.startsWith("o1") || this.modelName.startsWith("o3")) {
+      if (this.modelName.startsWith('o1') || this.modelName.startsWith('o3')) {
         try {
-          const parsedSchema = JSON.stringify(
-            zodToJsonSchema(options.response_model.schema),
-          );
+          const parsedSchema = JSON.stringify(zodToJsonSchema(options.response_model.schema));
           options.messages.push({
-            role: "user",
+            role: 'user',
             content: `Respond in this zod schema format:\n${parsedSchema}\n
 
           Do not include any other text, formatting or markdown in your output. Do not include \`\`\` or \`\`\`json in your response. Only the JSON object itself.`,
           });
         } catch (error) {
           logger({
-            category: "openai",
-            message: "Failed to parse response model schema",
+            category: 'openai',
+            message: 'Failed to parse response model schema',
             level: 0,
           });
 
@@ -240,10 +203,7 @@ export class OpenAIClient extends LLMClient {
           throw error;
         }
       } else {
-        responseFormat = zodResponseFormat(
-          options.response_model.schema,
-          options.response_model.name,
-        );
+        responseFormat = zodResponseFormat(options.response_model.schema, options.response_model.name);
       }
     }
 
@@ -254,75 +214,72 @@ export class OpenAIClient extends LLMClient {
     };
 
     logger({
-      category: "openai",
-      message: "creating chat completion",
+      category: 'openai',
+      message: 'creating chat completion',
       level: 2,
       auxiliary: {
         openAiOptions: {
           value: JSON.stringify(openAiOptions),
-          type: "object",
+          type: 'object',
         },
       },
     });
 
-    const formattedMessages: ChatCompletionMessageParam[] =
-      options.messages.map((message) => {
-        if (Array.isArray(message.content)) {
-          const contentParts = message.content.map((content) => {
-            if ("image_url" in content) {
-              const imageContent: ChatCompletionContentPartImage = {
-                image_url: {
-                  url: content.image_url.url,
-                },
-                type: "image_url",
-              };
-              return imageContent;
-            } else {
-              const textContent: ChatCompletionContentPartText = {
-                text: content.text,
-                type: "text",
-              };
-              return textContent;
-            }
-          });
-
-          if (message.role === "system") {
-            const formattedMessage: ChatCompletionSystemMessageParam = {
-              ...message,
-              role: "system",
-              content: contentParts.filter(
-                (content): content is ChatCompletionContentPartText =>
-                  content.type === "text",
-              ),
+    const formattedMessages: ChatCompletionMessageParam[] = options.messages.map((message) => {
+      if (Array.isArray(message.content)) {
+        const contentParts = message.content.map((content) => {
+          if ('image_url' in content) {
+            const imageContent: ChatCompletionContentPartImage = {
+              image_url: {
+                url: content.image_url.url,
+              },
+              type: 'image_url',
             };
-            return formattedMessage;
-          } else if (message.role === "user") {
-            const formattedMessage: ChatCompletionUserMessageParam = {
-              ...message,
-              role: "user",
-              content: contentParts,
-            };
-            return formattedMessage;
+            return imageContent;
           } else {
-            const formattedMessage: ChatCompletionAssistantMessageParam = {
-              ...message,
-              role: "assistant",
-              content: contentParts.filter(
-                (content): content is ChatCompletionContentPartText =>
-                  content.type === "text",
-              ),
+            const textContent: ChatCompletionContentPartText = {
+              text: content.text,
+              type: 'text',
             };
-            return formattedMessage;
+            return textContent;
           }
+        });
+
+        if (message.role === 'system') {
+          const formattedMessage: ChatCompletionSystemMessageParam = {
+            ...message,
+            role: 'system',
+            content: contentParts.filter(
+              (content): content is ChatCompletionContentPartText => content.type === 'text'
+            ),
+          };
+          return formattedMessage;
+        } else if (message.role === 'user') {
+          const formattedMessage: ChatCompletionUserMessageParam = {
+            ...message,
+            role: 'user',
+            content: contentParts,
+          };
+          return formattedMessage;
+        } else {
+          const formattedMessage: ChatCompletionAssistantMessageParam = {
+            ...message,
+            role: 'assistant',
+            content: contentParts.filter(
+              (content): content is ChatCompletionContentPartText => content.type === 'text'
+            ),
+          };
+          return formattedMessage;
         }
+      }
 
-        const formattedMessage: ChatCompletionUserMessageParam = {
-          role: "user",
-          content: message.content,
-        };
+      const formattedMessage: ChatCompletionUserMessageParam = {
+        role: 'user',
+        content: message.content,
+      };
 
-        return formattedMessage;
-      });
+      return formattedMessage;
+    });
 
     const body: ChatCompletionCreateParamsNonStreaming = {
       ...openAiOptions,
@@ -336,7 +293,7 @@ export class OpenAIClient extends LLMClient {
           description: tool.description,
           parameters: tool.parameters,
         },
-        type: "function",
+        type: 'function',
       })),
     };
 
@@ -350,27 +307,27 @@ export class OpenAIClient extends LLMClient {
         response.choices[0].message.tool_calls = [
           {
             function: {
-              name: parsedContent["name"],
-              arguments: JSON.stringify(parsedContent["arguments"]),
+              name: parsedContent['name'],
+              arguments: JSON.stringify(parsedContent['arguments']),
             },
-            type: "function",
-            id: "-1",
+            type: 'function',
+            id: '-1',
           },
         ];
         response.choices[0].message.content = null;
       } catch (error) {
         logger({
-          category: "openai",
-          message: "Failed to parse tool call response",
+          category: 'openai',
+          message: 'Failed to parse tool call response',
           level: 0,
           auxiliary: {
             error: {
               value: error.message,
-              type: "string",
+              type: 'string',
             },
             content: {
               value: response.choices[0].message.content,
-              type: "string",
+              type: 'string',
             },
           },
         });
@@ -389,17 +346,17 @@ export class OpenAIClient extends LLMClient {
     }
 
     logger({
-      category: "openai",
-      message: "response",
+      category: 'openai',
+      message: 'response',
       level: 2,
       auxiliary: {
         response: {
           value: JSON.stringify(response),
-          type: "object",
+          type: 'object',
         },
         requestId: {
           value: requestId,
-          type: "string",
+          type: 'string',
         },
       },
     });
@@ -412,8 +369,8 @@ export class OpenAIClient extends LLMClient {
         validateZodSchema(options.response_model.schema, parsedData);
       } catch (e) {
         logger({
-          category: "openai",
-          message: "Response failed Zod schema validation",
+          category: 'openai',
+          message: 'Response failed Zod schema validation',
           level: 0,
         });
         if (retries > 0) {
@@ -427,15 +384,15 @@ export class OpenAIClient extends LLMClient {
 
         if (e instanceof ZodSchemaValidationError) {
           logger({
-            category: "openai",
+            category: 'openai',
             message: `Error during OpenAI chat completion: ${e.message}`,
             level: 0,
             auxiliary: {
               errorDetails: {
-                value: `Message: ${e.message}${e.stack ? "\nStack: " + e.stack : ""}`,
-                type: "string",
+                value: `Message: ${e.message}${e.stack ? '\nStack: ' + e.stack : ''}`,
+                type: 'string',
               },
-              requestId: { value: requestId, type: "string" },
+              requestId: { value: requestId, type: 'string' },
             },
           });
           throw new CreateChatCompletionResponseError(e.message);
@@ -449,7 +406,7 @@ export class OpenAIClient extends LLMClient {
           {
             ...parsedData,
           },
-          options.requestId,
+          options.requestId
         );
       }
 
@@ -461,21 +418,21 @@ export class OpenAIClient extends LLMClient {
 
     if (this.enableCaching) {
       logger({
-        category: "llm_cache",
-        message: "caching response",
+        category: 'llm_cache',
+        message: 'caching response',
         level: 1,
         auxiliary: {
           requestId: {
             value: options.requestId,
-            type: "string",
+            type: 'string',
           },
           cacheOptions: {
             value: JSON.stringify(cacheOptions),
-            type: "object",
+            type: 'object',
           },
           response: {
             value: JSON.stringify(response),
-            type: "object",
+            type: 'object',
           },
         },
       });

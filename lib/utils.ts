@@ -1,11 +1,11 @@
-import { ZodFirstPartyTypeKind as Kind, z } from "zod";
-import { ObserveResult, Page } from ".";
-import { LogLine } from "../types/log";
-import { ZodPathSegments } from "../types/stagehand";
-import { Schema, Type } from "@google/genai";
-import { ModelProvider } from "../types/model";
-import { ZodSchemaValidationError } from "@/types/stagehandErrors";
-import { ID_PATTERN } from "@/types/context";
+import { ZodFirstPartyTypeKind as Kind, z } from 'zod';
+import { ObserveResult, Page } from '.';
+import { LogLine } from '../types/log';
+import { ZodPathSegments } from '../types/stagehand';
+import { Schema, Type } from '@google/genai';
+import { ModelProvider } from '../types/model';
+import { ZodSchemaValidationError } from '@/types/stagehandErrors';
+import { ID_PATTERN } from '@/types/context';
 
 export function validateZodSchema(schema: z.ZodTypeAny, data: unknown) {
   const result = schema.safeParse(data);
@@ -21,36 +21,30 @@ export async function drawObserveOverlay(page: Page, results: ObserveResult[]) {
   const xpathList = results.map((result) => result.selector);
 
   // Filter out empty xpaths
-  const validXpaths = xpathList.filter((xpath) => xpath !== "xpath=");
+  const validXpaths = xpathList.filter((xpath) => xpath !== 'xpath=');
 
   await page.evaluate((selectors) => {
     selectors.forEach((selector) => {
       let element;
-      if (selector.startsWith("xpath=")) {
+      if (selector.startsWith('xpath=')) {
         const xpath = selector.substring(6);
-        element = document.evaluate(
-          xpath,
-          document,
-          null,
-          XPathResult.FIRST_ORDERED_NODE_TYPE,
-          null,
-        ).singleNodeValue;
+        element = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
       } else {
         element = document.querySelector(selector);
       }
 
       if (element instanceof HTMLElement) {
-        const overlay = document.createElement("div");
-        overlay.setAttribute("stagehandObserve", "true");
+        const overlay = document.createElement('div');
+        overlay.setAttribute('stagehandObserve', 'true');
         const rect = element.getBoundingClientRect();
-        overlay.style.position = "absolute";
-        overlay.style.left = rect.left + "px";
-        overlay.style.top = rect.top + "px";
-        overlay.style.width = rect.width + "px";
-        overlay.style.height = rect.height + "px";
-        overlay.style.backgroundColor = "rgba(255, 255, 0, 0.3)";
-        overlay.style.pointerEvents = "none";
-        overlay.style.zIndex = "10000";
+        overlay.style.position = 'absolute';
+        overlay.style.left = rect.left + 'px';
+        overlay.style.top = rect.top + 'px';
+        overlay.style.width = rect.width + 'px';
+        overlay.style.height = rect.height + 'px';
+        overlay.style.backgroundColor = 'rgba(255, 255, 0, 0.3)';
+        overlay.style.pointerEvents = 'none';
+        overlay.style.zIndex = '10000';
         document.body.appendChild(overlay);
       }
     });
@@ -76,20 +70,13 @@ export async function clearOverlays(page: Page) {
  * @returns {boolean} True if running in Bun, false otherwise.
  */
 export function isRunningInBun(): boolean {
-  return (
-    typeof process !== "undefined" &&
-    typeof process.versions !== "undefined" &&
-    "bun" in process.versions
-  );
+  return typeof process !== 'undefined' && typeof process.versions !== 'undefined' && 'bun' in process.versions;
 }
 
 /*
  * Helper functions for converting between Gemini and Zod schemas
  */
-function decorateGeminiSchema(
-  geminiSchema: Schema,
-  zodSchema: z.ZodTypeAny,
-): Schema {
+function decorateGeminiSchema(geminiSchema: Schema, zodSchema: z.ZodTypeAny): Schema {
   if (geminiSchema.nullable === undefined) {
     geminiSchema.nullable = zodSchema.isOptional();
   }
@@ -105,28 +92,26 @@ export function toGeminiSchema(zodSchema: z.ZodTypeAny): Schema {
   const zodType = getZodType(zodSchema);
 
   switch (zodType) {
-    case "ZodArray": {
+    case 'ZodArray': {
       return decorateGeminiSchema(
         {
           type: Type.ARRAY,
-          items: toGeminiSchema(
-            (zodSchema as z.ZodArray<z.ZodTypeAny>).element,
-          ),
+          items: toGeminiSchema((zodSchema as z.ZodArray<z.ZodTypeAny>).element),
         },
-        zodSchema,
+        zodSchema
       );
     }
-    case "ZodObject": {
+    case 'ZodObject': {
       const properties: Record<string, Schema> = {};
       const required: string[] = [];
 
       Object.entries((zodSchema as z.ZodObject<z.ZodRawShape>).shape).forEach(
         ([key, value]: [string, z.ZodTypeAny]) => {
           properties[key] = toGeminiSchema(value);
-          if (getZodType(value) !== "ZodOptional") {
+          if (getZodType(value) !== 'ZodOptional') {
             required.push(key);
           }
-        },
+        }
       );
 
       return decorateGeminiSchema(
@@ -135,57 +120,57 @@ export function toGeminiSchema(zodSchema: z.ZodTypeAny): Schema {
           properties,
           required: required.length > 0 ? required : undefined,
         },
-        zodSchema,
+        zodSchema
       );
     }
-    case "ZodString":
+    case 'ZodString':
       return decorateGeminiSchema(
         {
           type: Type.STRING,
         },
-        zodSchema,
+        zodSchema
       );
-    case "ZodNumber":
+    case 'ZodNumber':
       return decorateGeminiSchema(
         {
           type: Type.NUMBER,
         },
-        zodSchema,
+        zodSchema
       );
-    case "ZodBoolean":
+    case 'ZodBoolean':
       return decorateGeminiSchema(
         {
           type: Type.BOOLEAN,
         },
-        zodSchema,
+        zodSchema
       );
-    case "ZodEnum":
+    case 'ZodEnum':
       return decorateGeminiSchema(
         {
           type: Type.STRING,
           enum: zodSchema._def.values,
         },
-        zodSchema,
+        zodSchema
       );
-    case "ZodDefault":
-    case "ZodNullable":
-    case "ZodOptional": {
+    case 'ZodDefault':
+    case 'ZodNullable':
+    case 'ZodOptional': {
       const innerSchema = toGeminiSchema(zodSchema._def.innerType);
       return decorateGeminiSchema(
         {
           ...innerSchema,
           nullable: true,
         },
-        zodSchema,
+        zodSchema
       );
     }
-    case "ZodLiteral":
+    case 'ZodLiteral':
       return decorateGeminiSchema(
         {
           type: Type.STRING,
           enum: [zodSchema._def.value],
         },
-        zodSchema,
+        zodSchema
       );
     default:
       return decorateGeminiSchema(
@@ -193,7 +178,7 @@ export function toGeminiSchema(zodSchema: z.ZodTypeAny): Schema {
           type: Type.OBJECT,
           nullable: true,
         },
-        zodSchema,
+        zodSchema
       );
   }
 }
@@ -218,14 +203,11 @@ export function getZodType(schema: z.ZodTypeAny): string {
  */
 export function transformSchema(
   schema: z.ZodTypeAny,
-  currentPath: Array<string | number>,
+  currentPath: Array<string | number>
 ): [z.ZodTypeAny, ZodPathSegments[]] {
   // 1) If it's a string with .url(), convert to z.number()
   if (isKind(schema, Kind.ZodString)) {
-    const hasUrlCheck =
-      schema._def.checks?.some(
-        (check: { kind: string }) => check.kind === "url",
-      ) ?? false;
+    const hasUrlCheck = schema._def.checks?.some((check: { kind: string }) => check.kind === 'url') ?? false;
     if (hasUrlCheck) {
       return [makeIdStringSchema(schema as z.ZodString), [{ segments: [] }]];
     }
@@ -244,10 +226,7 @@ export function transformSchema(
 
     for (const key of shapeKeys) {
       const child = shape[key];
-      const [transformedChild, childPaths] = transformSchema(child, [
-        ...currentPath,
-        key,
-      ]);
+      const [transformedChild, childPaths] = transformSchema(child, [...currentPath, key]);
 
       if (transformedChild !== child) {
         changed = true;
@@ -270,13 +249,10 @@ export function transformSchema(
   // 3) If it's an array, transform its item type
   if (isKind(schema, Kind.ZodArray)) {
     const itemType = schema._def.type as z.ZodTypeAny;
-    const [transformedItem, childPaths] = transformSchema(itemType, [
-      ...currentPath,
-      "*",
-    ]);
+    const [transformedItem, childPaths] = transformSchema(itemType, [...currentPath, '*']);
     const changed = transformedItem !== itemType;
     const arrayPaths: ZodPathSegments[] = childPaths.map((cp) => ({
-      segments: ["*", ...cp.segments],
+      segments: ['*', ...cp.segments],
     }));
 
     if (changed) {
@@ -294,10 +270,7 @@ export function transformSchema(
     let allPaths: ZodPathSegments[] = [];
 
     unionOptions.forEach((option: z.ZodTypeAny, idx: number) => {
-      const [newOption, childPaths] = transformSchema(option, [
-        ...currentPath,
-        `union_${idx}`,
-      ]);
+      const [newOption, childPaths] = transformSchema(option, [...currentPath, `union_${idx}`]);
       if (newOption !== option) {
         changed = true;
       }
@@ -307,10 +280,7 @@ export function transformSchema(
 
     if (changed) {
       // We assume at least two options remain:
-      return [
-        z.union(newOptions as [z.ZodTypeAny, z.ZodTypeAny, ...z.ZodTypeAny[]]),
-        allPaths,
-      ];
+      return [z.union(newOptions as [z.ZodTypeAny, z.ZodTypeAny, ...z.ZodTypeAny[]]), allPaths];
     }
     return [schema, allPaths];
   }
@@ -320,14 +290,8 @@ export function transformSchema(
     const leftType = schema._def.left as z.ZodTypeAny;
     const rightType = schema._def.right as z.ZodTypeAny;
 
-    const [left, leftPaths] = transformSchema(leftType, [
-      ...currentPath,
-      "intersection_left",
-    ]);
-    const [right, rightPaths] = transformSchema(rightType, [
-      ...currentPath,
-      "intersection_right",
-    ]);
+    const [left, leftPaths] = transformSchema(leftType, [...currentPath, 'intersection_left']);
+    const [right, rightPaths] = transformSchema(rightType, [...currentPath, 'intersection_right']);
     const changed = left !== leftType || right !== rightType;
     const allPaths = [...leftPaths, ...rightPaths];
     if (changed) {
@@ -376,35 +340,31 @@ export function transformSchema(
  * with the real URL strings from idToUrlMapping. The `path` may include `*`
  * for array indices (indicating "all items in the array").
  */
-export function injectUrls(
-  obj: unknown,
-  path: Array<string | number>,
-  idToUrlMapping: Record<string, string>,
-): void {
+export function injectUrls(obj: unknown, path: Array<string | number>, idToUrlMapping: Record<string, string>): void {
   if (path.length === 0) return;
   const [key, ...rest] = path;
 
-  if (key === "*") {
+  if (key === '*') {
     if (Array.isArray(obj)) {
       for (const item of obj) injectUrls(item, rest, idToUrlMapping);
     }
     return;
   }
 
-  if (obj && typeof obj === "object") {
+  if (obj && typeof obj === 'object') {
     const record = obj as Record<string | number, unknown>;
     if (path.length === 1) {
       const fieldValue = record[key];
 
       const id =
-        typeof fieldValue === "number"
+        typeof fieldValue === 'number'
           ? String(fieldValue)
-          : typeof fieldValue === "string" && ID_PATTERN.test(fieldValue)
+          : typeof fieldValue === 'string' && ID_PATTERN.test(fieldValue)
             ? fieldValue
             : undefined;
 
       if (id !== undefined) {
-        record[key] = idToUrlMapping[id] ?? "";
+        record[key] = idToUrlMapping[id] ?? '';
       }
     } else {
       injectUrls(record[key], rest, idToUrlMapping);
@@ -420,17 +380,12 @@ function makeIdStringSchema(orig: z.ZodString): z.ZodString {
   const userDesc =
     // Zod ≥3.23 exposes .description directly; fall back to _def for older minor versions
     (orig as unknown as { description?: string }).description ??
-    (orig as unknown as { _def?: { description?: string } })._def
-      ?.description ??
-    "";
+    (orig as unknown as { _def?: { description?: string } })._def?.description ??
+    '';
 
-  const base =
-    "This field must be the element-ID in the form 'frameId-backendId' " +
-    '(e.g. "0-432").';
+  const base = "This field must be the element-ID in the form 'frameId-backendId' " + '(e.g. "0-432").';
   const composed =
-    userDesc.trim().length > 0
-      ? `${base} that follows this user-defined description: ${userDesc}`
-      : base;
+    userDesc.trim().length > 0 ? `${base} that follows this user-defined description: ${userDesc}` : base;
 
   return z.string().regex(ID_PATTERN).describe(composed);
 }
@@ -438,21 +393,19 @@ function makeIdStringSchema(orig: z.ZodString): z.ZodString {
 /**
  * Mapping from LLM provider names to their corresponding environment variable names for API keys.
  */
-export const providerEnvVarMap: Partial<
-  Record<ModelProvider | string, string>
-> = {
-  openai: "OPENAI_API_KEY",
-  anthropic: "ANTHROPIC_API_KEY",
-  google: "GOOGLE_GENERATIVE_AI_API_KEY",
-  groq: "GROQ_API_KEY",
-  cerebras: "CEREBRAS_API_KEY",
-  togetherai: "TOGETHER_AI_API_KEY",
-  mistral: "MISTRAL_API_KEY",
-  deepseek: "DEEPSEEK_API_KEY",
-  perplexity: "PERPLEXITY_API_KEY",
-  azure: "AZURE_API_KEY",
-  xai: "XAI_API_KEY",
-  google_legacy: "GOOGLE_API_KEY",
+export const providerEnvVarMap: Partial<Record<ModelProvider | string, string>> = {
+  openai: 'OPENAI_API_KEY',
+  anthropic: 'ANTHROPIC_API_KEY',
+  google: 'GOOGLE_GENERATIVE_AI_API_KEY',
+  groq: 'GROQ_API_KEY',
+  cerebras: 'CEREBRAS_API_KEY',
+  togetherai: 'TOGETHER_AI_API_KEY',
+  mistral: 'MISTRAL_API_KEY',
+  deepseek: 'DEEPSEEK_API_KEY',
+  perplexity: 'PERPLEXITY_API_KEY',
+  azure: 'AZURE_API_KEY',
+  xai: 'XAI_API_KEY',
+  google_legacy: 'GOOGLE_API_KEY',
 };
 
 /**
@@ -463,7 +416,7 @@ export const providerEnvVarMap: Partial<
  */
 export function loadApiKeyFromEnv(
   provider: string | undefined,
-  logger: (logLine: LogLine) => void,
+  logger: (logLine: LogLine) => void
 ): string | undefined {
   if (!provider) {
     return undefined;
@@ -472,7 +425,7 @@ export function loadApiKeyFromEnv(
   const envVarName = providerEnvVarMap[provider];
   if (!envVarName) {
     logger({
-      category: "init",
+      category: 'init',
       message: `No known environment variable for provider '${provider}'`,
       level: 0,
     });
@@ -480,12 +433,12 @@ export function loadApiKeyFromEnv(
   }
 
   const apiKeyFromEnv = process.env[envVarName];
-  if (typeof apiKeyFromEnv === "string" && apiKeyFromEnv.length > 0) {
+  if (typeof apiKeyFromEnv === 'string' && apiKeyFromEnv.length > 0) {
     return apiKeyFromEnv;
   }
 
   logger({
-    category: "init",
+    category: 'init',
     message: `API key for ${provider} not found in environment variable ${envVarName}`,
     level: 0,
   });
@@ -494,6 +447,6 @@ export function loadApiKeyFromEnv(
 }
 
 export function trimTrailingTextNode(path: string | undefined): string {
-  if (!path || typeof path !== "string") return "";
-  return path.replace(/\/text\(\)(\[\d+\])?$/iu, "");
+  if (!path || typeof path !== 'string') return '';
+  return path.replace(/\/text\(\)(\[\d+\])?$/iu, '');
 }

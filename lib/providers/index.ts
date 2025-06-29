@@ -1,2 +1,2 @@
-export { ProviderManager } from "./ProviderManager";
-export * from "../../types/provider";
+export { ProviderManager } from './ProviderManager';
+export * from '../../types/provider';

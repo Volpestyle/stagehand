@@ -1,15 +1,11 @@
-import { z } from "zod";
-import { LLMProvider } from "../lib/llm/LLMProvider";
-import { LogLine } from "./log";
-import { AvailableModel, ClientOptions } from "./model";
-import { LLMClient } from "../lib/llm/LLMClient";
-import { Cookie } from "playwright";
-import { AgentProviderType } from "./agent";
-import {
-  ProviderType as _ProviderType,
-  ProviderConfig as _ProviderConfig,
-  IBrowserProvider,
-} from "./provider";
+import { z } from 'zod';
+import { LLMProvider } from '../lib/llm/LLMProvider';
+import { LogLine } from './log';
+import { AvailableModel, ClientOptions } from './model';
+import { LLMClient } from '../lib/llm/LLMClient';
+import { Cookie } from 'playwright';
+import { AgentProviderType } from './agent';
+import { ProviderType as _ProviderType, ProviderConfig as _ProviderConfig, IBrowserProvider } from './provider';
 
 export interface ConstructorParams {
   /**
@@ -30,7 +26,7 @@ export interface ConstructorParams {
    * @deprecated Use provider instead
    * The environment to use for Stagehand
    */
-  env?: "LOCAL" | "BROWSERBASE";
+  env?: 'LOCAL' | 'BROWSERBASE';
   /**
    * The verbosity of the Stagehand logger
    * 0 - No logs
@@ -213,9 +209,9 @@ export interface LocalBrowserLaunchOptions {
   permissions?: Array<string>;
   recordHar?: {
     omitContent?: boolean;
-    content?: "omit" | "embed" | "attach";
+    content?: 'omit' | 'embed' | 'attach';
     path: string;
-    mode?: "full" | "minimal";
+    mode?: 'full' | 'minimal';
     urlFilter?: string | RegExp;
   };
   recordVideo?: { dir: string; size?: { width: number; height: number } };
@@ -297,14 +293,14 @@ export interface AgentConfig {
 }
 
 export enum StagehandFunctionName {
-  ACT = "ACT",
-  EXTRACT = "EXTRACT",
-  OBSERVE = "OBSERVE",
-  AGENT = "AGENT",
+  ACT = 'ACT',
+  EXTRACT = 'EXTRACT',
+  OBSERVE = 'OBSERVE',
+  AGENT = 'AGENT',
 }
 
 export interface HistoryEntry {
-  method: "act" | "extract" | "observe" | "navigate";
+  method: 'act' | 'extract' | 'observe' | 'navigate';
   parameters: unknown;
   result: unknown;
   timestamp: string;

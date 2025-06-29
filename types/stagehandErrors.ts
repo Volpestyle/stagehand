@@ -1,5 +1,5 @@
-import { ZodError } from "zod";
-import { STAGEHAND_VERSION } from "../lib/version.js";
+import { ZodError } from 'zod';
+import { STAGEHAND_VERSION } from '../lib/version.js';
 
 export class StagehandError extends Error {
   constructor(message: string) {
@@ -12,21 +12,17 @@ export class StagehandDefaultError extends StagehandError {
   constructor(error?: unknown) {
     if (error instanceof Error || error instanceof StagehandError) {
       super(
-        `\nHey! We're sorry you ran into an error. \nStagehand version: ${STAGEHAND_VERSION} \nIf you need help, please open a Github issue or reach out to us on Slack: https://stagehand.dev/slack\n\nFull error:\n${error.message}`,
+        `\nHey! We're sorry you ran into an error. \nStagehand version: ${STAGEHAND_VERSION} \nIf you need help, please open a Github issue or reach out to us on Slack: https://stagehand.dev/slack\n\nFull error:\n${error.message}`
       );
     }
   }
 }
 
 export class StagehandEnvironmentError extends StagehandError {
-  constructor(
-    currentEnvironment: string,
-    requiredEnvironment: string,
-    feature: string,
-  ) {
+  constructor(currentEnvironment: string, requiredEnvironment: string, feature: string) {
     super(
       `You seem to be setting the current environment to ${currentEnvironment}.` +
-        `Ensure the environment is set to ${requiredEnvironment} if you want to use ${feature}.`,
+        `Ensure the environment is set to ${requiredEnvironment} if you want to use ${feature}.`
     );
   }
 }
@@ -35,7 +31,7 @@ export class MissingEnvironmentVariableError extends StagehandError {
   constructor(missingEnvironmentVariable: string, feature: string) {
     super(
       `${missingEnvironmentVariable} is required to use ${feature}.` +
-        `Please set ${missingEnvironmentVariable} in your environment.`,
+        `Please set ${missingEnvironmentVariable} in your environment.`
     );
   }
 }
@@ -45,7 +41,7 @@ export class UnsupportedModelError extends StagehandError {
     super(
       feature
         ? `${feature} requires one of the following models: ${supportedModels}`
-        : `please use one of the supported models: ${supportedModels}`,
+        : `please use one of the supported models: ${supportedModels}`
     );
   }
 }
@@ -55,7 +51,7 @@ export class UnsupportedModelProviderError extends StagehandError {
     super(
       feature
         ? `${feature} requires one of the following model providers: ${supportedProviders}`
-        : `please use one of the supported model providers: ${supportedProviders}`,
+        : `please use one of the supported model providers: ${supportedProviders}`
     );
   }
 }
@@ -63,7 +59,7 @@ export class UnsupportedModelProviderError extends StagehandError {
 export class UnsupportedAISDKModelProviderError extends StagehandError {
   constructor(provider: string, supportedProviders: string[]) {
     super(
-      `${provider} is not currently supported for aiSDK. please use one of the supported model providers: ${supportedProviders}`,
+      `${provider} is not currently supported for aiSDK. please use one of the supported model providers: ${supportedProviders}`
     );
   }
 }
@@ -71,7 +67,7 @@ export class UnsupportedAISDKModelProviderError extends StagehandError {
 export class InvalidAISDKModelFormatError extends StagehandError {
   constructor(modelName: string) {
     super(
-      `${modelName} does not follow correct format for specifying aiSDK models. Please define your modelName as 'provider/model-name'. For example: \`modelName: 'openai/gpt-4o-mini'\``,
+      `${modelName} does not follow correct format for specifying aiSDK models. Please define your modelName as 'provider/model-name'. For example: \`modelName: 'openai/gpt-4o-mini'\``
     );
   }
 }
@@ -81,28 +77,28 @@ export class StagehandNotInitializedError extends StagehandError {
     super(
       `You seem to be calling \`${prop}\` on a page in an uninitialized \`Stagehand\` object. ` +
         `Ensure you are running \`await stagehand.init()\` on the Stagehand object before ` +
-        `referencing the \`page\` object.`,
+        `referencing the \`page\` object.`
     );
   }
 }
 
 export class BrowserbaseSessionNotFoundError extends StagehandError {
   constructor() {
-    super("No Browserbase session ID found");
+    super('No Browserbase session ID found');
   }
 }
 
 export class CaptchaTimeoutError extends StagehandError {
   constructor() {
-    super("Captcha timeout");
+    super('Captcha timeout');
   }
 }
 
 export class MissingLLMConfigurationError extends StagehandError {
   constructor() {
     super(
-      "No LLM API key or LLM Client configured. An LLM API key or a custom LLM Client " +
-        "is required to use act, extract, or observe.",
+      'No LLM API key or LLM Client configured. An LLM API key or a custom LLM Client ' +
+        'is required to use act, extract, or observe.'
     );
   }
 }
@@ -157,9 +153,7 @@ export class StagehandDomProcessError extends StagehandError {
 
 export class StagehandClickError extends StagehandError {
   constructor(message: string, selector: string) {
-    super(
-      `Error Clicking Element with selector: ${selector} Reason: ${message}`,
-    );
+    super(`Error Clicking Element with selector: ${selector} Reason: ${message}`);
   }
 }
 
@@ -171,9 +165,7 @@ export class LLMResponseError extends StagehandError {
 
 export class StagehandIframeError extends StagehandError {
   constructor(frameUrl: string, message: string) {
-    super(
-      `Unable to resolve frameId for iframe with URL: ${frameUrl} Full error: ${message}`,
-    );
+    super(`Unable to resolve frameId for iframe with URL: ${frameUrl} Full error: ${message}`);
   }
 }
 
@@ -192,9 +184,9 @@ export class XPathResolutionError extends StagehandError {
 export class ExperimentalApiConflictError extends StagehandError {
   constructor() {
     super(
-      "`experimental` mode cannot be used together with the Stagehand API. " +
-        "To use experimental features, set experimental: true, and useApi: false in the stagehand constructor. " +
-        "To use the Stagehand API, set experimental: false and useApi: true in the stagehand constructor. ",
+      '`experimental` mode cannot be used together with the Stagehand API. ' +
+        'To use experimental features, set experimental: true, and useApi: false in the stagehand constructor. ' +
+        'To use the Stagehand API, set experimental: false and useApi: true in the stagehand constructor. '
     );
   }
 }
@@ -211,7 +203,7 @@ export class ExperimentalNotConfiguredError extends StagehandError {
 export class ZodSchemaValidationError extends Error {
   constructor(
     public readonly received: unknown,
-    public readonly issues: ReturnType<ZodError["format"]>,
+    public readonly issues: ReturnType<ZodError['format']>
   ) {
     super(`Zod schema validation failed
 
@@ -220,7 +212,7 @@ ${JSON.stringify(received, null, 2)}
 
 — Issues —
 ${JSON.stringify(issues, null, 2)}`);
-    this.name = "ZodSchemaValidationError";
+    this.name = 'ZodSchemaValidationError';
   }
 }
 

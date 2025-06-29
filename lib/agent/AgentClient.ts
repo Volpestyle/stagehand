@@ -1,9 +1,4 @@
-import {
-  AgentAction,
-  AgentResult,
-  AgentType,
-  AgentExecutionOptions,
-} from "@/types/agent";
+import { AgentAction, AgentResult, AgentType, AgentExecutionOptions } from '@/types/agent';
 
 /**
  * Abstract base class for agent clients
@@ -15,11 +10,7 @@ export abstract class AgentClient {
   public clientOptions: Record<string, unknown>;
   public userProvidedInstructions?: string;
 
-  constructor(
-    type: AgentType,
-    modelName: string,
-    userProvidedInstructions?: string,
-  ) {
+  constructor(type: AgentType, modelName: string, userProvidedInstructions?: string) {
     this.type = type;
     this.modelName = modelName;
     this.userProvidedInstructions = userProvidedInstructions;
@@ -28,9 +19,7 @@ export abstract class AgentClient {
 
   abstract execute(options: AgentExecutionOptions): Promise<AgentResult>;
 
-  abstract captureScreenshot(
-    options?: Record<string, unknown>,
-  ): Promise<unknown>;
+  abstract captureScreenshot(options?: Record<string, unknown>): Promise<unknown>;
 
   abstract setViewport(width: number, height: number): void;
 
@@ -38,7 +27,5 @@ export abstract class AgentClient {
 
   abstract setScreenshotProvider(provider: () => Promise<string>): void;
 
-  abstract setActionHandler(
-    handler: (action: AgentAction) => Promise<void>,
-  ): void;
+  abstract setActionHandler(handler: (action: AgentAction) => Promise<void>): void;
 }

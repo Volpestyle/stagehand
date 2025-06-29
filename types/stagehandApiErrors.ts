@@ -7,7 +7,7 @@ export class StagehandAPIError extends Error {
 
 export class StagehandAPIUnauthorizedError extends StagehandAPIError {
   constructor(message?: string) {
-    super(message || "Unauthorized request");
+    super(message || 'Unauthorized request');
   }
 }
 
@@ -25,7 +25,7 @@ export class StagehandServerError extends StagehandAPIError {
 
 export class StagehandResponseBodyError extends StagehandAPIError {
   constructor() {
-    super("Response body is null");
+    super('Response body is null');
   }
 }
 

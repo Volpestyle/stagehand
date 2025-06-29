@@ -1,10 +1,8 @@
-import { ChatMessage } from "./llm/LLMClient";
+import { ChatMessage } from './llm/LLMClient';
 
-export function buildUserInstructionsString(
-  userProvidedInstructions?: string,
-): string {
+export function buildUserInstructionsString(userProvidedInstructions?: string): string {
   if (!userProvidedInstructions) {
-    return "";
+    return '';
   }
 
   return `\n\n# Custom Instructions Provided by the User
@@ -18,7 +16,7 @@ ${userProvidedInstructions}`;
 // extract
 export function buildExtractSystemPrompt(
   isUsingPrintExtractedDataTool: boolean = false,
-  userProvidedInstructions?: string,
+  userProvidedInstructions?: string
 ): ChatMessage {
   const baseContent = `You are extracting content on behalf of a user.
   If a user asks you to extract a 'list' of information, or 'all' information, 
@@ -40,23 +38,20 @@ Print null or an empty string if no new information is found.
 ONLY print the content using the print_extracted_data tool provided.
 ONLY print the content using the print_extracted_data tool provided.
   `.trim()
-    : "";
+    : '';
 
   const additionalInstructions =
-    "If a user is attempting to extract links or URLs, you MUST respond with ONLY the IDs of the link elements. \n" +
-    "Do not attempt to extract links directly from the text unless absolutely necessary. ";
+    'If a user is attempting to extract links or URLs, you MUST respond with ONLY the IDs of the link elements. \n' +
+    'Do not attempt to extract links directly from the text unless absolutely necessary. ';
 
-  const userInstructions = buildUserInstructionsString(
-    userProvidedInstructions,
-  );
+  const userInstructions = buildUserInstructionsString(userProvidedInstructions);
 
-  const content =
-    `${baseContent}${contentDetail}\n\n${instructions}\n${toolInstructions}${
-      additionalInstructions ? `\n\n${additionalInstructions}` : ""
-    }${userInstructions ? `\n\n${userInstructions}` : ""}`.replace(/\s+/g, " ");
+  const content = `${baseContent}${contentDetail}\n\n${instructions}\n${toolInstructions}${
+    additionalInstructions ? `\n\n${additionalInstructions}` : ''
+  }${userInstructions ? `\n\n${userInstructions}` : ''}`.replace(/\s+/g, ' ');
 
   return {
-    role: "system",
+    role: 'system',
     content,
   };
 }
@@ -64,7 +59,7 @@ ONLY print the content using the print_extracted_data tool provided.
 export function buildExtractUserPrompt(
   instruction: string,
   domElements: string,
-  isUsingPrintExtractedDataTool: boolean = false,
+  isUsingPrintExtractedDataTool: boolean = false
 ): ChatMessage {
   let content = `Instruction: ${instruction}
 DOM: ${domElements}`;
@@ -76,7 +71,7 @@ ONLY print the content using the print_extracted_data tool provided.`;
   }
 
   return {
-    role: "user",
+    role: 'user',
     content,
   };
 }
@@ -91,7 +86,7 @@ Strictly abide by the following criteria:
 
 export function buildMetadataSystemPrompt(): ChatMessage {
   return {
-    role: "system",
+    role: 'system',
     content: metadataSystemPrompt,
   };
 }
@@ -100,10 +95,10 @@ export function buildMetadataPrompt(
   instruction: string,
   extractionResponse: object,
   chunksSeen: number,
-  chunksTotal: number,
+  chunksTotal: number
 ): ChatMessage {
   return {
-    role: "user",
+    role: 'user',
     content: `Instruction: ${instruction}
 Extracted content: ${JSON.stringify(extractionResponse, null, 2)}
 chunksSeen: ${chunksSeen}
@@ -112,9 +107,7 @@ chunksTotal: ${chunksTotal}`,
 }
 
 // observe
-export function buildObserveSystemPrompt(
-  userProvidedInstructions?: string,
-): ChatMessage {
+export function buildObserveSystemPrompt(userProvidedInstructions?: string): ChatMessage {
   const observeSystemPrompt = `
 You are helping the user automate the browser by finding elements based on what the user wants to observe in the page.
 
@@ -123,22 +116,17 @@ You will be given:
 2. a hierarchical accessibility tree showing the semantic structure of the page. The tree is a hybrid of the DOM and the accessibility tree.
 
 Return an array of elements that match the instruction if they exist, otherwise return an empty array.`;
-  const content = observeSystemPrompt.replace(/\s+/g, " ");
+  const content = observeSystemPrompt.replace(/\s+/g, ' ');
 
   return {
-    role: "system",
-    content: [content, buildUserInstructionsString(userProvidedInstructions)]
-      .filter(Boolean)
-      .join("\n\n"),
+    role: 'system',
+    content: [content, buildUserInstructionsString(userProvidedInstructions)].filter(Boolean).join('\n\n'),
   };
 }
 
-export function buildObserveUserMessage(
-  instruction: string,
-  domElements: string,
-): ChatMessage {
+export function buildObserveUserMessage(instruction: string, domElements: string): ChatMessage {
   return {
-    role: "user",
+    role: 'user',
     content: `instruction: ${instruction}
 Accessibility Tree: \n${domElements}`,
   };
@@ -150,11 +138,11 @@ Accessibility Tree: \n${domElements}`,
 export function buildActObservePrompt(
   action: string,
   supportedActions: string[],
-  variables?: Record<string, string>,
+  variables?: Record<string, string>
 ): string {
   // Base instruction
   let instruction = `Find the most relevant element to perform an action on given the following action: ${action}. 
-  Provide an action for this element such as ${supportedActions.join(", ")}, or any other playwright locator method. Remember that to users, buttons and links look the same in most cases.
+  Provide an action for this element such as ${supportedActions.join(', ')}, or any other playwright locator method. Remember that to users, buttons and links look the same in most cases.
   If the action is completely unrelated to a potential action to be taken on the page, return an empty array. 
   Return one or more actions that need to be performed in sequence to complete the requested task. If the action requires multiple steps (like filling a field and pressing Enter), return all necessary actions in the correct order. 
   If the user is asking to scroll to a position on the page, e.g., 'halfway' or 0.75, etc, you must return the argument formatted as the correct percentage, e.g., '50%' or '75%', etc.
@@ -165,7 +153,7 @@ export function buildActObservePrompt(
   if (variables && Object.keys(variables).length > 0) {
     const variableNames = Object.keys(variables)
       .map((key) => `%${key}%`)
-      .join(", ");
+      .join(', ');
     const variablesPrompt = `The following variables are available to use in the action: ${variableNames}. Fill the argument variables with the variable name.`;
     instruction += ` ${variablesPrompt}`;
   }
@@ -175,7 +163,7 @@ export function buildActObservePrompt(
 
 export function buildOperatorSystemPrompt(goal: string): ChatMessage {
   return {
-    role: "system",
+    role: 'system',
     content: `You are a general-purpose agent whose job is to accomplish the user's goal across multiple model calls by running actions on the page.
 
 You will be given a goal and a list of steps that have been taken so far. Your job is to determine if either the user's goal has been completed or if there are still steps that need to be taken.

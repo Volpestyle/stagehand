@@ -118,23 +118,23 @@
 
 - [#591](https://github.com/browserbase/stagehand/pull/591) [`e234a0f`](https://github.com/browserbase/stagehand/commit/e234a0f80bf4c07bcc57265da216cbc4ab3bd19d) Thanks [@miguelg719](https://github.com/miguelg719)! - Announcing **Stagehand 2.0**! 🎉
 
-  We're thrilled to announce the release of Stagehand 2.0, bringing significant improvements to make browser automation more powerful, faster, and easier to use than ever before.
+    We're thrilled to announce the release of Stagehand 2.0, bringing significant improvements to make browser automation more powerful, faster, and easier to use than ever before.
 
-  ### 🚀 New Features
-  - **Introducing `stagehand.agent`**: A powerful new way to integrate SOTA Computer use models or Browserbase's [Open Operator](https://operator.browserbase.com) into Stagehand with one line of code! Perfect for multi-step workflows and complex interactions. [Learn more](https://docs.stagehand.dev/concepts/agent)
-  - **Lightning-fast `act` and `extract`**: Major performance improvements to make your automations run significantly faster.
-  - **Enhanced Logging**: Better visibility into what's happening during automation with improved logging and debugging capabilities.
-  - **Comprehensive Documentation**: A completely revamped documentation site with better examples, guides, and best practices.
-  - **Improved Error Handling**: More descriptive errors and better error recovery to help you debug issues faster.
+    ### 🚀 New Features
+    - **Introducing `stagehand.agent`**: A powerful new way to integrate SOTA Computer use models or Browserbase's [Open Operator](https://operator.browserbase.com) into Stagehand with one line of code! Perfect for multi-step workflows and complex interactions. [Learn more](https://docs.stagehand.dev/concepts/agent)
+    - **Lightning-fast `act` and `extract`**: Major performance improvements to make your automations run significantly faster.
+    - **Enhanced Logging**: Better visibility into what's happening during automation with improved logging and debugging capabilities.
+    - **Comprehensive Documentation**: A completely revamped documentation site with better examples, guides, and best practices.
+    - **Improved Error Handling**: More descriptive errors and better error recovery to help you debug issues faster.
 
-  ### 🛠️ Developer Experience
-  - **Better TypeScript Support**: Enhanced type definitions and better IDE integration
-  - **Better Error Messages**: Clearer, more actionable error messages to help you debug faster
-  - **Improved Caching**: More reliable action caching for better performance
+    ### 🛠️ Developer Experience
+    - **Better TypeScript Support**: Enhanced type definitions and better IDE integration
+    - **Better Error Messages**: Clearer, more actionable error messages to help you debug faster
+    - **Improved Caching**: More reliable action caching for better performance
 
-  We're excited to see what you build with Stagehand 2.0! For questions or support, join our [Slack community](https://stagehand.dev/slack).
+    We're excited to see what you build with Stagehand 2.0! For questions or support, join our [Slack community](https://stagehand.dev/slack).
 
-  For more details, check out our [documentation](https://docs.stagehand.dev).
+    For more details, check out our [documentation](https://docs.stagehand.dev).
 
 ### Minor Changes
 
@@ -200,22 +200,22 @@
 
 - [#483](https://github.com/browserbase/stagehand/pull/483) [`8c9445f`](https://github.com/browserbase/stagehand/commit/8c9445fde9724ae33eeeb1234fd5b9bbd418bfdb) Thanks [@seanmcguire12](https://github.com/seanmcguire12)! - When using `textExtract`, you can now do targetted extraction by passing an xpath string into extract via the `selector` parameter. This limits the dom processing step to a target element, reducing tokens and increasing speed. For example:
 
-  ```typescript
-  const weatherData = await stagehand.page.extract({
-    instruction: "extract the weather data for Sun, Feb 23 at 11PM",
-    schema: z.object({
-      temperature: z.string(),
-      weather_description: z.string(),
-      wind: z.string(),
-      humidity: z.string(),
-      barometer: z.string(),
-      visibility: z.string(),
-    }),
-    modelName,
-    useTextExtract,
-    selector: xpath, // xpath of the element to extract from
-  });
-  ```
+    ```typescript
+    const weatherData = await stagehand.page.extract({
+        instruction: 'extract the weather data for Sun, Feb 23 at 11PM',
+        schema: z.object({
+            temperature: z.string(),
+            weather_description: z.string(),
+            wind: z.string(),
+            humidity: z.string(),
+            barometer: z.string(),
+            visibility: z.string(),
+        }),
+        modelName,
+        useTextExtract,
+        selector: xpath, // xpath of the element to extract from
+    });
+    ```
 
 - [#556](https://github.com/browserbase/stagehand/pull/556) [`499a72d`](https://github.com/browserbase/stagehand/commit/499a72dc56009791ce065270b854b12fc5570050) Thanks [@kamath](https://github.com/kamath)! - You can now set a timeout for dom-based stagehand act! Do this in `act` with `timeoutMs` as a parameter, or set a global param to `actTimeoutMs` in Stagehand config.
 
@@ -388,8 +388,8 @@
 - [#316](https://github.com/browserbase/stagehand/pull/316) [`902e633`](https://github.com/browserbase/stagehand/commit/902e633e126a58b80b757ea0ecada01a7675a473) Thanks [@kamath](https://github.com/kamath)! - rename browserbaseResumeSessionID -> browserbaseSessionID
 
 - [#296](https://github.com/browserbase/stagehand/pull/296) [`f11da27`](https://github.com/browserbase/stagehand/commit/f11da27a20409c240ceeea2003d520f676def61a) Thanks [@kamath](https://github.com/kamath)! - - Deprecate fields in `init` in favor of constructor options
-  - Deprecate `initFromPage` in favor of `browserbaseResumeSessionID` in constructor
-  - Rename `browserBaseSessionCreateParams` -> `browserbaseSessionCreateParams`
+    - Deprecate `initFromPage` in favor of `browserbaseResumeSessionID` in constructor
+    - Rename `browserBaseSessionCreateParams` -> `browserbaseSessionCreateParams`
 
 - [#304](https://github.com/browserbase/stagehand/pull/304) [`0b72f75`](https://github.com/browserbase/stagehand/commit/0b72f75f6a62aaeb28b0c488ae96db098d6a2846) Thanks [@seanmcguire12](https://github.com/seanmcguire12)! - add textExtract: an optional, text based approach to the existing extract method. textExtract often performs better on long form extraction tasks. By default `extract` uses the existing approach `domExtract`.
 
@@ -452,8 +452,8 @@
 ### Minor Changes
 
 - [#195](https://github.com/browserbase/stagehand/pull/195) [`87a6305`](https://github.com/browserbase/stagehand/commit/87a6305d9a2faf1ab5915965913bc14d5cc15772) Thanks [@kamath](https://github.com/kamath)! - - Adds structured and more standardized JSON logging
-  - Doesn't init cache if `enableCaching` is false, preventing `tmp/.cache` from being created
-  - Updates bundling for browser-side code to support NextJS and serverless
+    - Doesn't init cache if `enableCaching` is false, preventing `tmp/.cache` from being created
+    - Updates bundling for browser-side code to support NextJS and serverless
 
 ## 1.2.0
 
@@ -461,13 +461,13 @@
 
 - [#179](https://github.com/browserbase/stagehand/pull/179) [`0031871`](https://github.com/browserbase/stagehand/commit/0031871d5a6d6180f272a68b88a8634e5a991785) Thanks [@navidkpr](https://github.com/navidkpr)! - Fixes:
 
-  The last big change we pushed out, introduced a small regression. As a result, the gray outline showing the elements Stagehand is looking out is missing. This commit fixes that. We now process selectorMap properly now (using the updated type Record<number, string[]
+    The last big change we pushed out, introduced a small regression. As a result, the gray outline showing the elements Stagehand is looking out is missing. This commit fixes that. We now process selectorMap properly now (using the updated type Record<number, string[]
 
-  Improved the action prompt:
+    Improved the action prompt:
 
-  Improved the structure
-  Made it more straightforward
-  Improved working for completed arg and prioritized precision over recall
+    Improved the structure
+    Made it more straightforward
+    Improved working for completed arg and prioritized precision over recall
 
 ## 1.1.0
 

@@ -1,5 +1,5 @@
-import OpenAI from "openai";
-import { LogLine } from "../../types/log";
+import OpenAI from 'openai';
+import { LogLine } from '../../types/log';
 import {
   AgentAction,
   AgentResult,
@@ -9,9 +9,9 @@ import {
   ResponseItem,
   ComputerCallItem,
   FunctionCallItem,
-} from "@/types/agent";
-import { AgentClient } from "./AgentClient";
-import { AgentScreenshotProviderError } from "@/types/stagehandErrors";
+} from '@/types/agent';
+import { AgentClient } from './AgentClient';
+import { AgentScreenshotProviderError } from '@/types/stagehandErrors';
 
 /**
  * Client for OpenAI's Computer Use Assistant API
@@ -28,27 +28,22 @@ export class OpenAICUAClient extends AgentClient {
   private screenshotProvider?: () => Promise<string>;
   private actionHandler?: (action: AgentAction) => Promise<void>;
   private reasoningItems: Map<string, ResponseItem> = new Map();
-  private environment: string = "browser"; // "browser", "mac", "windows", or "ubuntu"
+  private environment: string = 'browser'; // "browser", "mac", "windows", or "ubuntu"
 
   constructor(
     type: AgentType,
     modelName: string,
     userProvidedInstructions?: string,
-    clientOptions?: Record<string, unknown>,
+    clientOptions?: Record<string, unknown>
   ) {
     super(type, modelName, userProvidedInstructions);
 
     // Process client options
-    this.apiKey =
-      (clientOptions?.apiKey as string) || process.env.OPENAI_API_KEY || "";
-    this.organization =
-      (clientOptions?.organization as string) || process.env.OPENAI_ORG;
+    this.apiKey = (clientOptions?.apiKey as string) || process.env.OPENAI_API_KEY || '';
+    this.organization = (clientOptions?.organization as string) || process.env.OPENAI_ORG;
 
     // Get environment if specified
-    if (
-      clientOptions?.environment &&
-      typeof clientOptions.environment === "string"
-    ) {
+    if (clientOptions?.environment && typeof clientOptions.environment === 'string') {
       this.environment = clientOptions.environment;
     }
 
@@ -91,7 +86,7 @@ export class OpenAICUAClient extends AgentClient {
     let completed = false;
     const actions: AgentAction[] = [];
     const messageList: string[] = [];
-    let finalMessage = "";
+    let finalMessage = '';
     this.reasoningItems.clear(); // Clear any previous reasoning items
 
     // Start with the initial instruction
@@ -105,16 +100,12 @@ export class OpenAICUAClient extends AgentClient {
       // Execute steps until completion or max steps reached
       while (!completed && currentStep < maxSteps) {
         logger({
-          category: "agent",
+          category: 'agent',
           message: `Executing step ${currentStep + 1}/${maxSteps}`,
           level: 2,
         });
 
-        const result = await this.executeStep(
-          inputItems,
-          previousResponseId,
-          logger,
-        );
+        const result = await this.executeStep(inputItems, previousResponseId, logger);
         totalInputTokens += result.usage.input_tokens;
         totalOutputTokens += result.usage.output_tokens;
         totalInferenceTime += result.usage.inference_time_ms;
@@ -156,10 +147,9 @@ export class OpenAICUAClient extends AgentClient {
         },
       };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       logger({
-        category: "agent",
+        category: 'agent',
         message: `Error executing agent task: ${errorMessage}`,
         level: 0,
       });
@@ -185,7 +175,7 @@ export class OpenAICUAClient extends AgentClient {
   async executeStep(
     inputItems: ResponseInputItem[],
     previousResponseId: string | undefined,
-    logger: (message: LogLine) => void,
+    logger: (message: LogLine) => void
   ): Promise<{
     actions: AgentAction[];
     message: string;
@@ -211,7 +201,7 @@ export class OpenAICUAClient extends AgentClient {
 
       // Add any reasoning items to our map
       for (const item of output) {
-        if (item.type === "reasoning") {
+        if (item.type === 'reasoning') {
           this.reasoningItems.set(item.id, item);
         }
       }
@@ -219,15 +209,12 @@ export class OpenAICUAClient extends AgentClient {
       // Extract actions from the output
       const stepActions: AgentAction[] = [];
       for (const item of output) {
-        if (item.type === "computer_call" && this.isComputerCallItem(item)) {
+        if (item.type === 'computer_call' && this.isComputerCallItem(item)) {
           const action = this.convertComputerCallToAction(item);
           if (action) {
             stepActions.push(action);
           }
-        } else if (
-          item.type === "function_call" &&
-          this.isFunctionCallItem(item)
-        ) {
+        } else if (item.type === 'function_call' && this.isFunctionCallItem(item)) {
           const action = this.convertFunctionCallToAction(item);
           if (action) {
             stepActions.push(action);
@@ -236,13 +223,13 @@ export class OpenAICUAClient extends AgentClient {
       }
 
       // Extract message text
-      let message = "";
+      let message = '';
       for (const item of output) {
-        if (item.type === "message") {
+        if (item.type === 'message') {
           if (item.content && Array.isArray(item.content)) {
             for (const content of item.content) {
-              if (content.type === "output_text" && content.text) {
-                message += content.text + "\n";
+              if (content.type === 'output_text' && content.text) {
+                message += content.text + '\n';
               }
             }
           }
@@ -254,10 +241,7 @@ export class OpenAICUAClient extends AgentClient {
 
       // Check if completed
       const completed =
-        output.length === 0 ||
-        output.every(
-          (item) => item.type === "message" || item.type === "reasoning",
-        );
+        output.length === 0 || output.every((item) => item.type === 'message' || item.type === 'reasoning');
 
       return {
         actions: stepActions,
@@ -268,10 +252,9 @@ export class OpenAICUAClient extends AgentClient {
         usage: usage,
       };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       logger({
-        category: "agent",
+        category: 'agent',
         message: `Error executing step: ${errorMessage}`,
         level: 0,
       });
@@ -281,32 +264,22 @@ export class OpenAICUAClient extends AgentClient {
   }
 
   private isComputerCallItem(item: ResponseItem): item is ComputerCallItem {
-    return (
-      item.type === "computer_call" &&
-      "call_id" in item &&
-      "action" in item &&
-      typeof item.action === "object"
-    );
+    return item.type === 'computer_call' && 'call_id' in item && 'action' in item && typeof item.action === 'object';
   }
 
   private isFunctionCallItem(item: ResponseItem): item is FunctionCallItem {
-    return (
-      item.type === "function_call" &&
-      "call_id" in item &&
-      "name" in item &&
-      "arguments" in item
-    );
+    return item.type === 'function_call' && 'call_id' in item && 'name' in item && 'arguments' in item;
   }
 
   private createInitialInputItems(instruction: string): ResponseInputItem[] {
     // For the initial request, we use a simple array with the user's instruction
     return [
       {
-        role: "system",
+        role: 'system',
         content: this.userProvidedInstructions,
       },
       {
-        role: "user",
+        role: 'user',
         content: instruction,
       },
     ];
@@ -314,7 +287,7 @@ export class OpenAICUAClient extends AgentClient {
 
   async getAction(
     inputItems: ResponseInputItem[],
-    previousResponseId?: string,
+    previousResponseId?: string
   ): Promise<{
     output: ResponseItem[];
     responseId: string;
@@ -326,14 +299,14 @@ export class OpenAICUAClient extends AgentClient {
         model: this.modelName,
         tools: [
           {
-            type: "computer_use_preview",
+            type: 'computer_use_preview',
             display_width: this.currentViewport.width,
             display_height: this.currentViewport.height,
             environment: this.environment,
           },
         ],
         input: inputItems,
-        truncation: "auto",
+        truncation: 'auto',
       };
 
       // Add previous_response_id if available
@@ -365,20 +338,17 @@ export class OpenAICUAClient extends AgentClient {
         usage,
       };
     } catch (error) {
-      console.error("Error getting action from OpenAI:", error);
+      console.error('Error getting action from OpenAI:', error);
       throw error;
     }
   }
 
-  async takeAction(
-    output: ResponseItem[],
-    logger: (message: LogLine) => void,
-  ): Promise<ResponseInputItem[]> {
+  async takeAction(output: ResponseItem[], logger: (message: LogLine) => void): Promise<ResponseInputItem[]> {
     const nextInputItems: ResponseInputItem[] = [];
 
     // Add any computer calls to process
     for (const item of output) {
-      if (item.type === "computer_call" && this.isComputerCallItem(item)) {
+      if (item.type === 'computer_call' && this.isComputerCallItem(item)) {
         // Execute the action
         try {
           const action = this.convertComputerCallToAction(item);
@@ -392,10 +362,10 @@ export class OpenAICUAClient extends AgentClient {
 
           // Create a computer_call_output for the next request
           const outputItem = {
-            type: "computer_call_output" as const,
+            type: 'computer_call_output' as const,
             call_id: item.call_id,
             output: {
-              type: "input_image" as const,
+              type: 'input_image' as const,
               image_url: screenshot,
             },
           } as ResponseInputItem;
@@ -403,10 +373,10 @@ export class OpenAICUAClient extends AgentClient {
           // Add current URL if available
           if (this.currentUrl) {
             const computerCallOutput = outputItem as {
-              type: "computer_call_output";
+              type: 'computer_call_output';
               call_id: string;
               output: {
-                type: "input_image";
+                type: 'input_image';
                 image_url: string;
                 current_url?: string;
               };
@@ -420,15 +390,12 @@ export class OpenAICUAClient extends AgentClient {
           }
 
           // Add any safety checks that need to be acknowledged
-          if (
-            item.pending_safety_checks &&
-            item.pending_safety_checks.length > 0
-          ) {
+          if (item.pending_safety_checks && item.pending_safety_checks.length > 0) {
             const computerCallOutput = outputItem as {
-              type: "computer_call_output";
+              type: 'computer_call_output';
               call_id: string;
               output: {
-                type: "input_image";
+                type: 'input_image';
                 image_url: string;
               };
               acknowledged_safety_checks?: Array<{
@@ -437,17 +404,15 @@ export class OpenAICUAClient extends AgentClient {
                 message: string;
               }>;
             };
-            computerCallOutput.acknowledged_safety_checks =
-              item.pending_safety_checks;
+            computerCallOutput.acknowledged_safety_checks = item.pending_safety_checks;
           }
 
           nextInputItems.push(outputItem);
         } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
+          const errorMessage = error instanceof Error ? error.message : String(error);
 
           logger({
-            category: "agent",
+            category: 'agent',
             message: `Error executing computer call: ${errorMessage}`,
             level: 0,
           });
@@ -457,10 +422,10 @@ export class OpenAICUAClient extends AgentClient {
             const screenshot = await this.captureScreenshot();
 
             const errorOutputItem = {
-              type: "computer_call_output" as const,
+              type: 'computer_call_output' as const,
               call_id: item.call_id,
               output: {
-                type: "input_image" as const,
+                type: 'input_image' as const,
                 image_url: screenshot,
                 error: errorMessage,
               },
@@ -469,10 +434,10 @@ export class OpenAICUAClient extends AgentClient {
             // Add current URL if available
             if (this.currentUrl) {
               const computerCallOutput = errorOutputItem as {
-                type: "computer_call_output";
+                type: 'computer_call_output';
                 call_id: string;
                 output: {
-                  type: "input_image";
+                  type: 'input_image';
                   image_url: string;
                   current_url?: string;
                 };
@@ -486,15 +451,12 @@ export class OpenAICUAClient extends AgentClient {
             }
 
             // Add any safety checks that need to be acknowledged
-            if (
-              item.pending_safety_checks &&
-              item.pending_safety_checks.length > 0
-            ) {
+            if (item.pending_safety_checks && item.pending_safety_checks.length > 0) {
               const computerCallOutput = errorOutputItem as {
-                type: "computer_call_output";
+                type: 'computer_call_output';
                 call_id: string;
                 output: {
-                  type: "input_image";
+                  type: 'input_image';
                   image_url: string;
                 };
                 acknowledged_safety_checks?: Array<{
@@ -503,31 +465,27 @@ export class OpenAICUAClient extends AgentClient {
                   message: string;
                 }>;
               };
-              computerCallOutput.acknowledged_safety_checks =
-                item.pending_safety_checks;
+              computerCallOutput.acknowledged_safety_checks = item.pending_safety_checks;
             }
 
             nextInputItems.push(errorOutputItem);
           } catch (screenshotError) {
             // If we can't capture a screenshot, just send the error
             logger({
-              category: "agent",
+              category: 'agent',
               message: `Error capturing screenshot: ${String(screenshotError)}`,
               level: 0,
             });
 
             // For error cases without a screenshot, we need to use a string output
             nextInputItems.push({
-              type: "computer_call_output",
+              type: 'computer_call_output',
               call_id: item.call_id,
               output: `Error: ${errorMessage}`,
             } as ResponseInputItem);
           }
         }
-      } else if (
-        item.type === "function_call" &&
-        this.isFunctionCallItem(item)
-      ) {
+      } else if (item.type === 'function_call' && this.isFunctionCallItem(item)) {
         // Execute the function
         try {
           const action = this.convertFunctionCallToAction(item);
@@ -538,22 +496,21 @@ export class OpenAICUAClient extends AgentClient {
 
           // Add the result
           nextInputItems.push({
-            type: "function_call_output",
+            type: 'function_call_output',
             call_id: item.call_id,
-            output: "success",
+            output: 'success',
           });
         } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
+          const errorMessage = error instanceof Error ? error.message : String(error);
 
           logger({
-            category: "agent",
+            category: 'agent',
             message: `Error executing function call: ${errorMessage}`,
             level: 0,
           });
 
           nextInputItems.push({
-            type: "function_call_output",
+            type: 'function_call_output',
             call_id: item.call_id,
             output: `Error: ${errorMessage}`,
           });
@@ -564,9 +521,7 @@ export class OpenAICUAClient extends AgentClient {
     return nextInputItems;
   }
 
-  private convertComputerCallToAction(
-    call: ComputerCallItem,
-  ): AgentAction | null {
+  private convertComputerCallToAction(call: ComputerCallItem): AgentAction | null {
     const { action } = call;
 
     // Instead of wrapping the action in a params object, spread the action properties directly
@@ -577,9 +532,7 @@ export class OpenAICUAClient extends AgentClient {
     };
   }
 
-  private convertFunctionCallToAction(
-    call: FunctionCallItem,
-  ): AgentAction | null {
+  private convertFunctionCallToAction(call: FunctionCallItem): AgentAction | null {
     try {
       const args = JSON.parse(call.arguments);
 
@@ -588,15 +541,12 @@ export class OpenAICUAClient extends AgentClient {
         params: args,
       };
     } catch (error) {
-      console.error("Error parsing function call arguments:", error);
+      console.error('Error parsing function call arguments:', error);
       return null;
     }
   }
 
-  async captureScreenshot(options?: {
-    base64Image?: string;
-    currentUrl?: string;
-  }): Promise<string> {
+  async captureScreenshot(options?: { base64Image?: string; currentUrl?: string }): Promise<string> {
     // Use provided options if available
     if (options?.base64Image) {
       return `data:image/png;base64,${options.base64Image}`;
@@ -608,14 +558,14 @@ export class OpenAICUAClient extends AgentClient {
         const base64Image = await this.screenshotProvider();
         return `data:image/png;base64,${base64Image}`;
       } catch (error) {
-        console.error("Error capturing screenshot:", error);
+        console.error('Error capturing screenshot:', error);
         throw error;
       }
     }
 
     throw new AgentScreenshotProviderError(
-      "`screenshotProvider` has not been set. " +
-        "Please call `setScreenshotProvider()` with a valid function that returns a base64-encoded image",
+      '`screenshotProvider` has not been set. ' +
+        'Please call `setScreenshotProvider()` with a valid function that returns a base64-encoded image'
     );
   }
 }

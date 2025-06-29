@@ -1,7 +1,7 @@
-import { BrowserResult } from "../types/browser";
-import { LogLine } from "../types/log";
-import { LocalBrowserLaunchOptions } from "../types/stagehand";
-import { IBrowserProvider } from "../types/provider";
+import { BrowserResult } from '../types/browser';
+import { LogLine } from '../types/log';
+import { LocalBrowserLaunchOptions } from '../types/stagehand';
+import { IBrowserProvider } from '../types/provider';
 
 interface GetBrowserParams {
   provider: IBrowserProvider;
@@ -12,7 +12,7 @@ interface GetBrowserParams {
   // Backwards compatibility options (unused but kept for compatibility)
   apiKey?: string;
   projectId?: string;
-  env?: "LOCAL" | "BROWSERBASE";
+  env?: 'LOCAL' | 'BROWSERBASE';
   browserbaseSessionCreateParams?: Record<string, unknown>;
   browserbaseSessionID?: string;
   localBrowserLaunchOptions?: LocalBrowserLaunchOptions;
@@ -22,9 +22,7 @@ interface GetBrowserParams {
  * Provider-based browser connection function
  * Replaces the old getBrowser function with provider abstraction
  */
-export async function getBrowserWithProvider(
-  params: GetBrowserParams,
-): Promise<BrowserResult> {
+export async function getBrowserWithProvider(params: GetBrowserParams): Promise<BrowserResult> {
   const {
     provider: browserProvider,
     sessionId,
@@ -36,11 +34,11 @@ export async function getBrowserWithProvider(
   } = params;
 
   logger({
-    category: "browser-connection",
+    category: 'browser-connection',
     message: `initializing ${browserProvider.type} provider`,
     level: 1,
     auxiliary: {
-      provider: { value: browserProvider.type, type: "string" },
+      provider: { value: browserProvider.type, type: 'string' },
     },
   });
 
@@ -51,19 +49,19 @@ export async function getBrowserWithProvider(
     if (targetSessionId) {
       // Resume existing session
       logger({
-        category: "browser-connection",
-        message: "resuming existing session",
+        category: 'browser-connection',
+        message: 'resuming existing session',
         level: 1,
         auxiliary: {
-          sessionId: { value: targetSessionId, type: "string" },
+          sessionId: { value: targetSessionId, type: 'string' },
         },
       });
       session = await browserProvider.resumeSession(targetSessionId);
     } else {
       // Create new session
       logger({
-        category: "browser-connection",
-        message: "creating new session",
+        category: 'browser-connection',
+        message: 'creating new session',
         level: 1,
       });
 
@@ -75,11 +73,11 @@ export async function getBrowserWithProvider(
 
     // Connect to browser
     logger({
-      category: "browser-connection",
-      message: "connecting to browser instance",
+      category: 'browser-connection',
+      message: 'connecting to browser instance',
       level: 1,
       auxiliary: {
-        sessionId: { value: session.sessionId, type: "string" },
+        sessionId: { value: session.sessionId, type: 'string' },
       },
     });
 
@@ -94,20 +92,20 @@ export async function getBrowserWithProvider(
       contextPath: connectionResult.contextPath,
       sessionId: session.sessionId,
       // Backwards compatibility
-      env: browserProvider.type === "local" ? "LOCAL" : "BROWSERBASE",
+      env: browserProvider.type === 'local' ? 'LOCAL' : 'BROWSERBASE',
     };
 
     logger({
-      category: "browser-connection",
+      category: 'browser-connection',
       message: `${browserProvider.type} browser session established`,
       level: 1,
       auxiliary: {
-        sessionId: { value: session.sessionId, type: "string" },
+        sessionId: { value: session.sessionId, type: 'string' },
         ...(session.debugUrl && {
-          debugUrl: { value: session.debugUrl, type: "string" },
+          debugUrl: { value: session.debugUrl, type: 'string' },
         }),
         ...(session.sessionUrl && {
-          sessionUrl: { value: session.sessionUrl, type: "string" },
+          sessionUrl: { value: session.sessionUrl, type: 'string' },
         }),
       },
     });
@@ -115,12 +113,12 @@ export async function getBrowserWithProvider(
     return result;
   } catch (error) {
     logger({
-      category: "browser-connection",
-      message: "failed to establish browser connection",
+      category: 'browser-connection',
+      message: 'failed to establish browser connection',
       level: 0,
       auxiliary: {
-        error: { value: (error as Error).message, type: "string" },
-        provider: { value: browserProvider.type, type: "string" },
+        error: { value: (error as Error).message, type: 'string' },
+        provider: { value: browserProvider.type, type: 'string' },
       },
     });
     throw error;

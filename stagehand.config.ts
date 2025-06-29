@@ -1,5 +1,5 @@
-import type { ConstructorParams } from "@/dist";
-import dotenv from "dotenv";
+import type { ConstructorParams } from '@/dist';
+import dotenv from 'dotenv';
 dotenv.config();
 
 const StagehandConfig: ConstructorParams = {
@@ -7,20 +7,16 @@ const StagehandConfig: ConstructorParams = {
   domSettleTimeoutMs: 30_000 /* Timeout for DOM to settle in milliseconds */,
 
   //   LLM configuration
-  modelName: "gpt-4o" /* Name of the model to use */,
+  modelName: 'gpt-4o' /* Name of the model to use */,
   modelClientOptions: {
     apiKey: process.env.OPENAI_API_KEY,
   } /* Configuration options for the model client */,
 
   // Browser configuration
-  env:
-    process.env.BROWSERBASE_API_KEY && process.env.BROWSERBASE_PROJECT_ID
-      ? "BROWSERBASE"
-      : "LOCAL",
+  env: process.env.BROWSERBASE_API_KEY && process.env.BROWSERBASE_PROJECT_ID ? 'BROWSERBASE' : 'LOCAL',
   apiKey: process.env.BROWSERBASE_API_KEY /* API key for authentication */,
   projectId: process.env.BROWSERBASE_PROJECT_ID /* Project identifier */,
-  browserbaseSessionID:
-    undefined /* Session ID for resuming Browserbase sessions */,
+  browserbaseSessionID: undefined /* Session ID for resuming Browserbase sessions */,
   browserbaseSessionCreateParams: {
     projectId: process.env.BROWSERBASE_PROJECT_ID!,
     browserSettings: {

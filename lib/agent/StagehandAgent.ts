@@ -1,10 +1,6 @@
-import { LogLine } from "@/types/log";
-import {
-  AgentExecuteOptions,
-  AgentResult,
-  AgentExecutionOptions,
-} from "@/types/agent";
-import { AgentClient } from "./AgentClient";
+import { LogLine } from '@/types/log';
+import { AgentExecuteOptions, AgentResult, AgentExecutionOptions } from '@/types/agent';
+import { AgentClient } from './AgentClient';
 
 /**
  * Main interface for agent operations in Stagehand
@@ -19,16 +15,12 @@ export class StagehandAgent {
     this.logger = logger;
   }
 
-  async execute(
-    optionsOrInstruction: AgentExecuteOptions | string,
-  ): Promise<AgentResult> {
+  async execute(optionsOrInstruction: AgentExecuteOptions | string): Promise<AgentResult> {
     const options =
-      typeof optionsOrInstruction === "string"
-        ? { instruction: optionsOrInstruction }
-        : optionsOrInstruction;
+      typeof optionsOrInstruction === 'string' ? { instruction: optionsOrInstruction } : optionsOrInstruction;
 
     this.logger({
-      category: "agent",
+      category: 'agent',
       message: `Executing agent task: ${options.instruction}`,
       level: 1,
     });

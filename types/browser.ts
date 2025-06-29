@@ -1,5 +1,5 @@
-import { Browser, BrowserContext } from "./page";
-import { ProviderType } from "./provider";
+import { Browser, BrowserContext } from './page';
+import { ProviderType } from './provider';
 
 export interface BrowserResult {
   provider: ProviderType;
@@ -12,5 +12,5 @@ export interface BrowserResult {
   /**
    * @deprecated Use provider instead
    */
-  env?: "LOCAL" | "BROWSERBASE";
+  env?: 'LOCAL' | 'BROWSERBASE';
 }

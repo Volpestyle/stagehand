@@ -1,6 +1,6 @@
 packages:
-  - "./"
-  - "lib"
-  - "examples"
-  - "evals"
-  - "docs"
+    - './'
+    - 'lib'
+    - 'examples'
+    - 'evals'
+    - 'docs'

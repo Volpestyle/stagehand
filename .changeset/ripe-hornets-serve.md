@@ -1,5 +1,5 @@
 ---
-"@browserbasehq/stagehand": patch
+'@browserbasehq/stagehand': patch
 ---
 
 Update logos

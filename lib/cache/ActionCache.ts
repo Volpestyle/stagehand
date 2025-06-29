@@ -1,5 +1,5 @@
-import { LogLine } from "../../types/log";
-import { BaseCache, CacheEntry } from "./BaseCache";
+import { LogLine } from '../../types/log';
+import { BaseCache, CacheEntry } from './BaseCache';
 
 export interface PlaywrightCommand {
   method: string;
@@ -22,12 +22,8 @@ export interface ActionEntry extends CacheEntry {
  * ActionCache handles logging and retrieving actions along with their Playwright commands.
  */
 export class ActionCache extends BaseCache<ActionEntry> {
-  constructor(
-    logger: (message: LogLine) => void,
-    cacheDir?: string,
-    cacheFile?: string,
-  ) {
-    super(logger, cacheDir, cacheFile || "action_cache.json");
+  constructor(logger: (message: LogLine) => void, cacheDir?: string, cacheFile?: string) {
+    super(logger, cacheDir, cacheFile || 'action_cache.json');
   }
 
   public async addActionStep({
@@ -52,25 +48,25 @@ export class ActionCache extends BaseCache<ActionEntry> {
     completed: boolean;
   }): Promise<void> {
     this.logger({
-      category: "action_cache",
-      message: "adding action step to cache",
+      category: 'action_cache',
+      message: 'adding action step to cache',
       level: 1,
       auxiliary: {
         action: {
           value: action,
-          type: "string",
+          type: 'string',
         },
         requestId: {
           value: requestId,
-          type: "string",
+          type: 'string',
         },
         url: {
           value: url,
-          type: "string",
+          type: 'string',
         },
         previousSelectors: {
           value: JSON.stringify(previousSelectors),
-          type: "object",
+          type: 'object',
         },
       },
     });
@@ -86,7 +82,7 @@ export class ActionCache extends BaseCache<ActionEntry> {
         previousSelectors,
         action,
       },
-      requestId,
+      requestId
     );
   }
 
@@ -106,7 +102,7 @@ export class ActionCache extends BaseCache<ActionEntry> {
     action: string;
     previousSelectors: string[];
     requestId: string;
-  }): Promise<ActionEntry["data"] | null> {
+  }): Promise<ActionEntry['data'] | null> {
     const data = await super.get({ url, action, previousSelectors }, requestId);
     if (!data) {
       return null;
@@ -132,13 +128,13 @@ export class ActionCache extends BaseCache<ActionEntry> {
   public async clearAction(requestId: string): Promise<void> {
     await super.deleteCacheForRequestId(requestId);
     this.logger({
-      category: "action_cache",
-      message: "cleared action for ID",
+      category: 'action_cache',
+      message: 'cleared action for ID',
       level: 1,
       auxiliary: {
         requestId: {
           value: requestId,
-          type: "string",
+          type: 'string',
         },
       },
     });
@@ -150,8 +146,8 @@ export class ActionCache extends BaseCache<ActionEntry> {
   public async resetCache(): Promise<void> {
     await super.resetCache();
     this.logger({
-      category: "action_cache",
-      message: "Action cache has been reset.",
+      category: 'action_cache',
+      message: 'Action cache has been reset.',
       level: 1,
     });
   }

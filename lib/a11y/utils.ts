@@ -11,22 +11,19 @@ import {
   EncodedId,
   RichNode,
   ID_PATTERN,
-} from "../../types/context";
-import { StagehandPage } from "../StagehandPage";
-import { LogLine } from "../../types/log";
-import { Page, Locator } from "playwright";
-import {
-  PlaywrightCommandMethodNotSupportedException,
-  PlaywrightCommandException,
-} from "@/types/playwright";
+} from '../../types/context';
+import { StagehandPage } from '../StagehandPage';
+import { LogLine } from '../../types/log';
+import { Page, Locator } from 'playwright';
+import { PlaywrightCommandMethodNotSupportedException, PlaywrightCommandException } from '@/types/playwright';
 import {
   ContentFrameNotFoundError,
   StagehandDomProcessError,
   StagehandElementNotFoundError,
   StagehandIframeError,
   XPathResolutionError,
-} from "@/types/stagehandErrors";
-import { CDPSession, Frame } from "playwright";
+} from '@/types/stagehandErrors';
+import { CDPSession, Frame } from 'playwright';
 
 const IFRAME_STEP_RE = /iframe\[\d+]$/i;
 const PUA_START = 0xe000;
@@ -43,7 +40,7 @@ const NBSP_CHARS = new Set<number>([0x00a0, 0x202f, 0x2007, 0xfeff]);
  *          consecutive spaces merged, and leading/trailing whitespace trimmed.
  */
 export function cleanText(input: string): string {
-  let out = "";
+  let out = '';
   let prevWasSpace = false;
 
   for (let i = 0; i < input.length; i++) {
@@ -57,7 +54,7 @@ export function cleanText(input: string): string {
     // Convert NBSP-family characters to a single space, collapsing repeats
     if (NBSP_CHARS.has(code)) {
       if (!prevWasSpace) {
-        out += " ";
+        out += ' ';
         prevWasSpace = true;
       }
       continue;
@@ -65,7 +62,7 @@ export function cleanText(input: string): string {
 
     // Append the character and update space tracker
     out += input[i];
-    prevWasSpace = input[i] === " ";
+    prevWasSpace = input[i] === ' ';
   }
 
   // Trim leading/trailing spaces before returning
@@ -79,25 +76,19 @@ export function cleanText(input: string): string {
  * @param level - The current depth level for indentation (used internally).
  * @returns A string representation of the node and its descendants, with one node per line.
  */
-export function formatSimplifiedTree(
-  node: AccessibilityNode & { encodedId?: EncodedId },
-  level = 0,
-): string {
+export function formatSimplifiedTree(node: AccessibilityNode & { encodedId?: EncodedId }, level = 0): string {
   // Compute indentation based on depth level
-  const indent = "  ".repeat(level);
+  const indent = '  '.repeat(level);
 
   // Use encodedId if available, otherwise fallback to nodeId
   const idLabel = node.encodedId ?? node.nodeId;
 
   // Prepare the formatted name segment if present
-  const namePart = node.name ? `: ${cleanText(node.name)}` : "";
+  const namePart = node.name ? `: ${cleanText(node.name)}` : '';
 
   // Build current line and recurse into child nodes
   const currentLine = `${indent}[${idLabel}] ${node.role}${namePart}\n`;
-  const childrenLines =
-    node.children
-      ?.map((c) => formatSimplifiedTree(c as typeof node, level + 1))
-      .join("") ?? "";
+  const childrenLines = node.children?.map((c) => formatSimplifiedTree(c as typeof node, level + 1)).join('') ?? '';
 
   return currentLine + childrenLines;
 }
@@ -126,10 +117,7 @@ const lc = (raw: string): string => {
  * @param targetFrame - Optional Playwright.Frame whose DOM subtree to map; defaults to main frame.
  * @returns A Promise resolving to BackendIdMaps containing tagNameMap and xpathMap.
  */
-export async function buildBackendIdMaps(
-  sp: StagehandPage,
-  targetFrame?: Frame,
-): Promise<BackendIdMaps> {
+export async function buildBackendIdMaps(sp: StagehandPage, targetFrame?: Frame): Promise<BackendIdMaps> {
   // 0. choose CDP session
   let session: CDPSession;
   if (!targetFrame || targetFrame === sp.page.mainFrame()) {
@@ -142,46 +130,32 @@ export async function buildBackendIdMaps(
     }
   }
 
-  await sp.enableCDP(
-    "DOM",
-    session === (await sp.getCDPClient()) ? undefined : targetFrame,
-  );
+  await sp.enableCDP('DOM', session === (await sp.getCDPClient()) ? undefined : targetFrame);
 
   try {
     // 1. full DOM tree
-    const { root } = (await session.send("DOM.getDocument", {
+    const { root } = (await session.send('DOM.getDocument', {
       depth: -1,
       pierce: true,
     })) as { root: DOMNode };
 
     // 2. pick start node + root frame-id
     let startNode: DOMNode = root;
-    let rootFid: string | undefined =
-      targetFrame && (await getCDPFrameId(sp, targetFrame));
+    let rootFid: string | undefined = targetFrame && (await getCDPFrameId(sp, targetFrame));
 
-    if (
-      targetFrame &&
-      targetFrame !== sp.page.mainFrame() &&
-      session === (await sp.getCDPClient())
-    ) {
+    if (targetFrame && targetFrame !== sp.page.mainFrame() && session === (await sp.getCDPClient())) {
       // same-proc iframe: walk down to its contentDocument
       const frameId = rootFid!;
-      const { backendNodeId } = await sp.sendCDP<{ backendNodeId: number }>(
-        "DOM.getFrameOwner",
-        { frameId },
-      );
+      const { backendNodeId } = await sp.sendCDP<{ backendNodeId: number }>('DOM.getFrameOwner', { frameId });
 
       let iframeNode: DOMNode | undefined;
       const locate = (n: DOMNode): boolean => {
         if (n.backendNodeId === backendNodeId) return ((iframeNode = n), true);
-        return (
-          (n.children?.some(locate) ?? false) ||
-          (n.contentDocument ? locate(n.contentDocument) : false)
-        );
+        return (n.children?.some(locate) ?? false) || (n.contentDocument ? locate(n.contentDocument) : false);
       };
 
       if (!locate(root) || !iframeNode?.contentDocument) {
-        throw new Error("iframe element or its contentDocument not found");
+        throw new Error('iframe element or its contentDocument not found');
       }
       startNode = iframeNode.contentDocument;
       rootFid = iframeNode.contentDocument.frameId ?? frameId;
@@ -196,7 +170,7 @@ export async function buildBackendIdMaps(
       path: string;
       fid: string | undefined; // CDP frame-id of this node’s doc
     }
-    const stack: StackEntry[] = [{ node: startNode, path: "", fid: rootFid }];
+    const stack: StackEntry[] = [{ node: startNode, path: '', fid: rootFid }];
     const seen = new Set<EncodedId>();
 
     while (stack.length) {
@@ -211,9 +185,9 @@ export async function buildBackendIdMaps(
       xpathMap[enc] = path;
 
       // recurse into sub-document if <iframe>
-      if (lc(node.nodeName) === "iframe" && node.contentDocument) {
+      if (lc(node.nodeName) === 'iframe' && node.contentDocument) {
         const childFid = node.contentDocument.frameId ?? fid;
-        stack.push({ node: node.contentDocument, path: "", fid: childFid });
+        stack.push({ node: node.contentDocument, path: '', fid: childFid });
       }
 
       // push children
@@ -227,11 +201,7 @@ export async function buildBackendIdMaps(
           const key = `${child.nodeType}:${tag}`;
           const idx = (ctr[key] = (ctr[key] ?? 0) + 1);
           segs.push(
-            child.nodeType === 3
-              ? `text()[${idx}]`
-              : child.nodeType === 8
-                ? `comment()[${idx}]`
-                : `${tag}[${idx}]`,
+            child.nodeType === 3 ? `text()[${idx}]` : child.nodeType === 8 ? `comment()[${idx}]` : `${tag}[${idx}]`
           );
         }
         // push R→L so traversal remains L→R
@@ -247,10 +217,7 @@ export async function buildBackendIdMaps(
 
     return { tagNameMap, xpathMap };
   } finally {
-    await sp.disableCDP(
-      "DOM",
-      session === (await sp.getCDPClient()) ? undefined : targetFrame,
-    );
+    await sp.disableCDP('DOM', session === (await sp.getCDPClient()) ? undefined : targetFrame);
   }
 }
 
@@ -265,25 +232,23 @@ export async function buildBackendIdMaps(
 async function cleanStructuralNodes(
   node: AccessibilityNode & { encodedId?: EncodedId },
   tagNameMap: Record<EncodedId, string>,
-  logger?: (l: LogLine) => void,
+  logger?: (l: LogLine) => void
 ): Promise<AccessibilityNode | null> {
   // 0. ignore negative pseudo-nodes
   if (+node.nodeId < 0) return null;
 
   // 1. leaf check
   if (!node.children?.length) {
-    return node.role === "generic" || node.role === "none" ? null : node;
+    return node.role === 'generic' || node.role === 'none' ? null : node;
   }
 
   // 2. recurse into children
   const cleanedChildren = (
-    await Promise.all(
-      node.children.map((c) => cleanStructuralNodes(c, tagNameMap, logger)),
-    )
+    await Promise.all(node.children.map((c) => cleanStructuralNodes(c, tagNameMap, logger)))
   ).filter(Boolean) as AccessibilityNode[];
 
   // 3. collapse / prune generic wrappers
-  if (node.role === "generic" || node.role === "none") {
+  if (node.role === 'generic' || node.role === 'none') {
     if (cleanedChildren.length === 1) {
       // Collapse single-child structural node
       return cleanedChildren[0];
@@ -295,17 +260,14 @@ async function cleanStructuralNodes(
   }
 
   // 4. replace generic role with real tag name (if we know it)
-  if (
-    (node.role === "generic" || node.role === "none") &&
-    node.encodedId !== undefined
-  ) {
+  if ((node.role === 'generic' || node.role === 'none') && node.encodedId !== undefined) {
     const tagName = tagNameMap[node.encodedId];
     if (tagName) node.role = tagName;
   }
 
   // 5. drop redundant StaticText children
   const pruned = removeRedundantStaticTextChildren(node, cleanedChildren);
-  if (!pruned.length && (node.role === "generic" || node.role === "none")) {
+  if (!pruned.length && (node.role === 'generic' || node.role === 'none')) {
     return null;
   }
 
@@ -329,7 +291,7 @@ export async function buildHierarchicalTree(
   nodes: AccessibilityNode[],
   tagNameMap: Record<EncodedId, string>,
   logger?: (l: LogLine) => void,
-  xpathMap?: Record<EncodedId, string>,
+  xpathMap?: Record<EncodedId, string>
 ): Promise<TreeResult> {
   // EncodedId → URL (only if the backend-id is unique)
   const idToUrl: Record<EncodedId, string> = {};
@@ -342,12 +304,12 @@ export async function buildHierarchicalTree(
 
   // helper: keep only roles that matter to the LLM
   const isInteractive = (n: AccessibilityNode) =>
-    n.role !== "none" && n.role !== "generic" && n.role !== "InlineTextBox";
+    n.role !== 'none' && n.role !== 'generic' && n.role !== 'InlineTextBox';
 
   // Build “backendId → EncodedId[]” lookup from tagNameMap keys
   const backendToIds = new Map<number, EncodedId[]>();
   for (const enc of Object.keys(tagNameMap) as EncodedId[]) {
-    const [, backend] = enc.split("-"); // "ff-bb"
+    const [, backend] = enc.split('-'); // "ff-bb"
     const list = backendToIds.get(+backend) ?? [];
     list.push(enc);
     backendToIds.set(+backend, list);
@@ -359,8 +321,7 @@ export async function buildHierarchicalTree(
 
     const url = extractUrlFromAXNode(node);
 
-    const keep =
-      node.name?.trim() || node.childIds?.length || isInteractive(node);
+    const keep = node.name?.trim() || node.childIds?.length || isInteractive(node);
     if (!keep) continue;
 
     // resolve our EncodedId (unique per backendId)
@@ -390,8 +351,7 @@ export async function buildHierarchicalTree(
 
   // Pass 2 – parent-child wiring
   for (const node of nodes) {
-    if (node.role === "Iframe")
-      iframeList.push({ role: node.role, nodeId: node.nodeId });
+    if (node.role === 'Iframe') iframeList.push({ role: node.role, nodeId: node.nodeId });
 
     if (!node.parentId) continue;
     const parent = nodeMap.get(node.parentId);
@@ -404,14 +364,12 @@ export async function buildHierarchicalTree(
     .filter((n) => !n.parentId && nodeMap.has(n.nodeId))
     .map((n) => nodeMap.get(n.nodeId)!) as RichNode[];
 
-  const cleanedRoots = (
-    await Promise.all(
-      roots.map((n) => cleanStructuralNodes(n, tagNameMap, logger)),
-    )
-  ).filter(Boolean) as AccessibilityNode[];
+  const cleanedRoots = (await Promise.all(roots.map((n) => cleanStructuralNodes(n, tagNameMap, logger)))).filter(
+    Boolean
+  ) as AccessibilityNode[];
 
   // pretty outline for logging / LLM input
-  const simplified = cleanedRoots.map(formatSimplifiedTree).join("\n");
+  const simplified = cleanedRoots.map(formatSimplifiedTree).join('\n');
 
   return {
     tree: cleanedRoots,
@@ -429,14 +387,11 @@ export async function buildHierarchicalTree(
  * @param frame - The target Playwright.Frame; undefined or main frame yields undefined.
  * @returns A Promise resolving to the CDP frameId string, or undefined for main document.
  */
-export async function getCDPFrameId(
-  sp: StagehandPage,
-  frame?: Frame,
-): Promise<string | undefined> {
+export async function getCDPFrameId(sp: StagehandPage, frame?: Frame): Promise<string | undefined> {
   if (!frame || frame === sp.page.mainFrame()) return undefined;
 
   // 1. Same-proc search in the page-session tree
-  const rootResp = (await sp.sendCDP("Page.getFrameTree")) as unknown;
+  const rootResp = (await sp.sendCDP('Page.getFrameTree')) as unknown;
   const { frameTree: root } = rootResp as { frameTree: CdpFrameTree };
 
   const url = frame.url();
@@ -459,7 +414,7 @@ export async function getCDPFrameId(
   try {
     const sess = await sp.context.newCDPSession(frame); // throws if detached
 
-    const ownResp = (await sess.send("Page.getFrameTree")) as unknown;
+    const ownResp = (await sess.send('Page.getFrameTree')) as unknown;
     const { frameTree } = ownResp as { frameTree: CdpFrameTree };
 
     return frameTree.frame.id; // root of OOPIF
@@ -482,15 +437,12 @@ export async function getAccessibilityTree(
   stagehandPage: StagehandPage,
   logger: (log: LogLine) => void,
   selector?: string,
-  targetFrame?: Frame,
+  targetFrame?: Frame
 ): Promise<TreeResult> {
   // 0. DOM helpers (maps, xpath)
-  const { tagNameMap, xpathMap } = await buildBackendIdMaps(
-    stagehandPage,
-    targetFrame,
-  );
+  const { tagNameMap, xpathMap } = await buildBackendIdMaps(stagehandPage, targetFrame);
 
-  await stagehandPage.enableCDP("Accessibility", targetFrame);
+  await stagehandPage.enableCDP('Accessibility', targetFrame);
 
   try {
     // 1. Decide params + session for the CDP call
@@ -525,42 +477,29 @@ export async function getAccessibilityTree(
     // 2. Fetch raw AX nodes
     const { nodes: fullNodes } = await stagehandPage.sendCDP<{
       nodes: AXNode[];
-    }>("Accessibility.getFullAXTree", params, sessionFrame);
+    }>('Accessibility.getFullAXTree', params, sessionFrame);
 
     // 3. Scrollable detection
-    const scrollableIds = await findScrollableElementIds(
-      stagehandPage,
-      targetFrame,
-    );
+    const scrollableIds = await findScrollableElementIds(stagehandPage, targetFrame);
 
     // 4. Filter by xpath if one is given
     let nodes = fullNodes;
     if (selector) {
-      nodes = await filterAXTreeByXPath(
-        stagehandPage,
-        fullNodes,
-        selector,
-        targetFrame,
-      );
+      nodes = await filterAXTreeByXPath(stagehandPage, fullNodes, selector, targetFrame);
     }
 
     // 5. Build hierarchical tree
     const start = Date.now();
-    const tree = await buildHierarchicalTree(
-      decorateRoles(nodes, scrollableIds),
-      tagNameMap,
-      logger,
-      xpathMap,
-    );
+    const tree = await buildHierarchicalTree(decorateRoles(nodes, scrollableIds), tagNameMap, logger, xpathMap);
 
     logger({
-      category: "observation",
+      category: 'observation',
       message: `got accessibility tree in ${Date.now() - start} ms`,
       level: 1,
     });
     return tree;
   } finally {
-    await stagehandPage.disableCDP("Accessibility", targetFrame);
+    await stagehandPage.disableCDP('Accessibility', targetFrame);
   }
 }
 
@@ -578,22 +517,20 @@ async function filterAXTreeByXPath(
   page: StagehandPage,
   full: AXNode[],
   xpath: string,
-  targetFrame?: Frame,
+  targetFrame?: Frame
 ): Promise<AXNode[]> {
   // Resolve the backendNodeId for the element at the provided XPath
   const objectId = await resolveObjectIdForXPath(page, xpath, targetFrame);
   // Describe the DOM node to retrieve its backendNodeId via CDP
   const { node } = await page.sendCDP<{ node: { backendNodeId: number } }>(
-    "DOM.describeNode",
+    'DOM.describeNode',
     { objectId },
-    targetFrame,
+    targetFrame
   );
 
   // Throw if unable to get a backendNodeId for the XPath target
   if (!node?.backendNodeId) {
-    throw new StagehandDomProcessError(
-      `Unable to resolve backendNodeId for "${xpath}"`,
-    );
+    throw new StagehandDomProcessError(`Unable to resolve backendNodeId for "${xpath}"`);
   }
   // Locate the corresponding AXNode in the full tree
   const target = full.find((n) => n.backendDOMNodeId === node.backendNodeId)!;
@@ -613,9 +550,7 @@ async function filterAXTreeByXPath(
   // Return only nodes in the keep set, unsetting parentId for the new root
   return full
     .filter((n) => keep.has(n.nodeId))
-    .map((n) =>
-      n.nodeId === target.nodeId ? { ...n, parentId: undefined } : n,
-    );
+    .map((n) => (n.nodeId === target.nodeId ? { ...n, parentId: undefined } : n));
 }
 
 /**
@@ -625,20 +560,14 @@ async function filterAXTreeByXPath(
  * @param scrollables - Set of backendNodeId values representing scrollable elements.
  * @returns A new array of AccessibilityNode objects with updated roles indicating scrollable elements.
  */
-function decorateRoles(
-  nodes: AXNode[],
-  scrollables: Set<number>,
-): AccessibilityNode[] {
+function decorateRoles(nodes: AXNode[], scrollables: Set<number>): AccessibilityNode[] {
   return nodes.map((n) => {
     // Extract the base role from the AX node
-    let role = n.role?.value ?? "";
+    let role = n.role?.value ?? '';
 
     // Prepend "scrollable" to roles of nodes identified as scrollable
     if (scrollables.has(n.backendDOMNodeId!)) {
-      role =
-        role && role !== "generic" && role !== "none"
-          ? `scrollable, ${role}`
-          : "scrollable";
+      role = role && role !== 'generic' && role !== 'none' ? `scrollable, ${role}` : 'scrollable';
     }
 
     // Construct the AccessibilityNode with decorated role and existing properties
@@ -663,10 +592,7 @@ function decorateRoles(
  * @param frame - The Playwright.Frame whose host iframe element to locate.
  * @returns A Promise resolving to the backendNodeId of the iframe element, or null if not applicable.
  */
-export async function getFrameRootBackendNodeId(
-  sp: StagehandPage,
-  frame: Frame | undefined,
-): Promise<number | null> {
+export async function getFrameRootBackendNodeId(sp: StagehandPage, frame: Frame | undefined): Promise<number | null> {
   // Return null for top-level or undefined frames
   if (!frame || frame === sp.page.mainFrame()) {
     return null;
@@ -681,7 +607,7 @@ export async function getFrameRootBackendNodeId(
   }
 
   // Retrieve the DOM node that owns the frame via CDP
-  const { backendNodeId } = (await cdp.send("DOM.getFrameOwner", {
+  const { backendNodeId } = (await cdp.send('DOM.getFrameOwner', {
     frameId: fid,
   })) as FrameOwnerResult;
 
@@ -694,12 +620,10 @@ export async function getFrameRootBackendNodeId(
  * @param frame - The Playwright.Frame whose iframe element to locate.
  * @returns A Promise resolving to the XPath of the iframe element, or "/" if no frame provided.
  */
-export async function getFrameRootXpath(
-  frame: Frame | undefined,
-): Promise<string> {
+export async function getFrameRootXpath(frame: Frame | undefined): Promise<string> {
   // Return root path when no frame context is provided
   if (!frame) {
-    return "/";
+    return '/';
   }
   // Obtain the element handle of the iframe in the embedding document
   const handle = await frame.frameElement();
@@ -707,18 +631,14 @@ export async function getFrameRootXpath(
   return handle.evaluate((node: Element) => {
     const pos = (el: Element) => {
       let i = 1;
-      for (
-        let sib = el.previousElementSibling;
-        sib;
-        sib = sib.previousElementSibling
-      )
+      for (let sib = el.previousElementSibling; sib; sib = sib.previousElementSibling)
         if (sib.tagName === el.tagName) i += 1;
       return i;
     };
     const segs: string[] = [];
     for (let el: Element | null = node; el; el = el.parentElement)
       segs.unshift(`${el.tagName.toLowerCase()}[${pos(el)}]`);
-    return `/${segs.join("/")}`;
+    return `/${segs.join('/')}`;
   });
 }
 
@@ -730,10 +650,7 @@ export async function getFrameRootXpath(
  * @param idToTree - Map of EncodedId to subtree outlines for nested frames.
  * @returns A single combined text outline with iframe subtrees injected.
  */
-export function injectSubtrees(
-  tree: string,
-  idToTree: Map<EncodedId, string>,
-): string {
+export function injectSubtrees(tree: string, idToTree: Map<EncodedId, string>): string {
   /**  Return the *only* EncodedId that ends with this backend-id.
    *   If several frames share that backend-id we return undefined
    *   (avoids guessing the wrong subtree). */
@@ -741,7 +658,7 @@ export function injectSubtrees(
     let found: EncodedId | undefined;
     let hit = 0;
     for (const enc of idToTree.keys()) {
-      const [, b] = enc.split("-"); // "ff-bbb"
+      const [, b] = enc.split('-'); // "ff-bbb"
       if (+b === backendId) {
         if (++hit > 1) return; // collision → abort
         found = enc;
@@ -756,7 +673,7 @@ export function injectSubtrees(
     indent: string;
   }
 
-  const stack: StackFrame[] = [{ lines: tree.split("\n"), idx: 0, indent: "" }];
+  const stack: StackFrame[] = [{ lines: tree.split('\n'), idx: 0, indent: '' }];
   const out: string[] = [];
   const visited = new Set<EncodedId>(); // avoid infinite loops
 
@@ -790,7 +707,7 @@ export function injectSubtrees(
       let backendId: number | undefined;
       const dashMatch = ID_PATTERN.exec(label);
       if (dashMatch) {
-        backendId = +dashMatch[0].split("-")[1];
+        backendId = +dashMatch[0].split('-')[1];
       } else if (/^\d+$/.test(label)) {
         backendId = +label;
       }
@@ -807,13 +724,13 @@ export function injectSubtrees(
 
     visited.add(enc);
     stack.push({
-      lines: child.split("\n"),
+      lines: child.split('\n'),
       idx: 0,
-      indent: (line.match(/^\s*/)?.[0] ?? "") + "  ",
+      indent: (line.match(/^\s*/)?.[0] ?? '') + '  ',
     });
   }
 
-  return out.join("\n");
+  return out.join('\n');
 }
 
 /**
@@ -828,7 +745,7 @@ export function injectSubtrees(
 export async function getAccessibilityTreeWithFrames(
   stagehandPage: StagehandPage,
   logger: (l: LogLine) => void,
-  rootXPath?: string,
+  rootXPath?: string
 ): Promise<CombinedA11yResult> {
   // 0. main-frame bookkeeping
   const main = stagehandPage.page.mainFrame();
@@ -838,10 +755,7 @@ export async function getAccessibilityTreeWithFrames(
   let innerXPath: string | undefined;
 
   if (rootXPath?.trim()) {
-    const { frames, rest } = await resolveFrameChain(
-      stagehandPage,
-      rootXPath.trim(),
-    );
+    const { frames, rest } = await resolveFrameChain(stagehandPage, rootXPath.trim());
     targetFrames = frames.length ? frames : undefined; // empty → undefined
     innerXPath = rest;
   }
@@ -872,20 +786,12 @@ export async function getAccessibilityTreeWithFrames(
         : undefined;
 
     try {
-      const res = await getAccessibilityTree(
-        stagehandPage,
-        logger,
-        selector,
-        frame,
-      );
+      const res = await getAccessibilityTree(stagehandPage, logger, selector, frame);
 
       // guard: main frame has no backendNodeId
-      const backendId =
-        frame === main
-          ? null
-          : await getFrameRootBackendNodeId(stagehandPage, frame);
+      const backendId = frame === main ? null : await getFrameRootBackendNodeId(stagehandPage, frame);
 
-      const frameXpath = frame === main ? "/" : await getFrameRootXpath(frame);
+      const frameXpath = frame === main ? '/' : await getFrameRootXpath(frame);
 
       // Resolve the CDP frameId for this Playwright Frame (undefined for main)
       const frameId = await getCDPFrameId(stagehandPage, frame);
@@ -903,10 +809,10 @@ export async function getAccessibilityTreeWithFrames(
       if (mainOnlyFilter) break; // nothing else to fetch
     } catch (err) {
       logger({
-        category: "observation",
-        message: `⚠️ failed to get AX tree for ${frame === main ? "main frame" : `iframe (${frame.url()})`}`,
+        category: 'observation',
+        message: `⚠️ failed to get AX tree for ${frame === main ? 'main frame' : `iframe (${frame.url()})`}`,
         level: 1,
-        auxiliary: { error: { value: String(err), type: "string" } },
+        auxiliary: { error: { value: String(err), type: 'string' } },
       });
     }
   }
@@ -920,33 +826,19 @@ export async function getAccessibilityTreeWithFrames(
 
   /* recursively build the full prefix for a frame */
   function fullPrefix(f: Frame | null): string {
-    if (!f) return ""; // reached main
+    if (!f) return ''; // reached main
     const parent = f.parentFrame();
     const above = fullPrefix(parent);
-    const hop = seg.get(parent) ?? "";
-    return hop === "/"
-      ? above
-      : above
-        ? `${above.replace(/\/$/, "")}/${hop.replace(/^\//, "")}`
-        : hop;
+    const hop = seg.get(parent) ?? '';
+    return hop === '/' ? above : above ? `${above.replace(/\/$/, '')}/${hop.replace(/^\//, '')}` : hop;
   }
 
   for (const snap of snapshots) {
-    const prefix =
-      snap.frameXpath === "/"
-        ? ""
-        : `${fullPrefix(snap.parentFrame)}${snap.frameXpath}`;
+    const prefix = snap.frameXpath === '/' ? '' : `${fullPrefix(snap.parentFrame)}${snap.frameXpath}`;
 
-    for (const [enc, local] of Object.entries(snap.xpathMap) as [
-      EncodedId,
-      string,
-    ][]) {
+    for (const [enc, local] of Object.entries(snap.xpathMap) as [EncodedId, string][]) {
       combinedXpathMap[enc] =
-        local === ""
-          ? prefix || "/"
-          : prefix
-            ? `${prefix.replace(/\/$/, "")}/${local.replace(/^\//, "")}`
-            : local;
+        local === '' ? prefix || '/' : prefix ? `${prefix.replace(/\/$/, '')}/${local.replace(/^\//, '')}` : local;
     }
     Object.assign(combinedUrlMap, snap.urlMap);
   }
@@ -956,16 +848,11 @@ export async function getAccessibilityTreeWithFrames(
   for (const { backendNodeId, frameId, tree } of snapshots)
     if (backendNodeId !== null && frameId !== undefined)
       // ignore main frame and snapshots without a CDP frameId
-      idToTree.set(
-        stagehandPage.encodeWithFrameId(frameId, backendNodeId),
-        tree,
-      );
+      idToTree.set(stagehandPage.encodeWithFrameId(frameId, backendNodeId), tree);
 
   //  5. stitch everything together
-  const rootSnap = snapshots.find((s) => s.frameXpath === "/");
-  const combinedTree = rootSnap
-    ? injectSubtrees(rootSnap.tree, idToTree)
-    : (snapshots[0]?.tree ?? "");
+  const rootSnap = snapshots.find((s) => s.frameXpath === '/');
+  const combinedTree = rootSnap ? injectSubtrees(rootSnap.tree, idToTree) : (snapshots[0]?.tree ?? '');
 
   return { combinedTree, combinedXpathMap, combinedUrlMap };
 }
@@ -990,30 +877,24 @@ export async function getAccessibilityTreeWithFrames(
  */
 export async function findScrollableElementIds(
   stagehandPage: StagehandPage,
-  targetFrame?: Frame,
+  targetFrame?: Frame
 ): Promise<Set<number>> {
   // JS runs inside the right browsing context
   const xpaths: string[] = targetFrame
     ? await targetFrame.evaluate(() => window.getScrollableElementXpaths())
-    : await stagehandPage.page.evaluate(() =>
-        window.getScrollableElementXpaths(),
-      );
+    : await stagehandPage.page.evaluate(() => window.getScrollableElementXpaths());
 
   const backendIds = new Set<number>();
 
   for (const xpath of xpaths) {
     if (!xpath) continue;
 
-    const objectId = await resolveObjectIdForXPath(
-      stagehandPage,
-      xpath,
-      targetFrame,
-    );
+    const objectId = await resolveObjectIdForXPath(stagehandPage, xpath, targetFrame);
 
     if (objectId) {
       const { node } = await stagehandPage.sendCDP<{
         node?: { backendNodeId?: number };
-      }>("DOM.describeNode", { objectId }, targetFrame);
+      }>('DOM.describeNode', { objectId }, targetFrame);
       if (node?.backendNodeId) backendIds.add(node.backendNodeId);
     }
   }
@@ -1030,12 +911,12 @@ export async function findScrollableElementIds(
 export async function resolveObjectIdForXPath(
   page: StagehandPage,
   xpath: string,
-  targetFrame?: Frame,
+  targetFrame?: Frame
 ): Promise<string | null> {
   const { result } = await page.sendCDP<{
     result?: { objectId?: string };
   }>(
-    "Runtime.evaluate",
+    'Runtime.evaluate',
     {
       expression: `
         (() => {
@@ -1051,7 +932,7 @@ export async function resolveObjectIdForXPath(
       `,
       returnByValue: false,
     },
-    targetFrame,
+    targetFrame
   );
   if (!result?.objectId) throw new StagehandElementNotFoundError([xpath]);
   return result.objectId;
@@ -1066,7 +947,7 @@ export async function resolveObjectIdForXPath(
  */
 function normaliseSpaces(s: string): string {
   // Initialize output buffer and state flag for whitespace grouping
-  let out = "";
+  let out = '';
   let inWs = false;
 
   // Iterate through each character of the input string
@@ -1077,7 +958,7 @@ function normaliseSpaces(s: string): string {
     if (isWs) {
       // If this is the first whitespace in a sequence, append a single space
       if (!inWs) {
-        out += " ";
+        out += ' ';
         inWs = true;
       }
     } else {
@@ -1099,25 +980,25 @@ function normaliseSpaces(s: string): string {
  */
 function removeRedundantStaticTextChildren(
   parent: AccessibilityNode,
-  children: AccessibilityNode[],
+  children: AccessibilityNode[]
 ): AccessibilityNode[] {
   // If the parent has no accessible name, there is nothing to compare
   if (!parent.name) return children;
 
   // Normalize and trim the parent's name for accurate string comparison
   const parentNorm = normaliseSpaces(parent.name).trim();
-  let combinedText = "";
+  let combinedText = '';
 
   // Concatenate all StaticText children's normalized names
   for (const child of children) {
-    if (child.role === "StaticText" && child.name) {
+    if (child.role === 'StaticText' && child.name) {
       combinedText += normaliseSpaces(child.name).trim();
     }
   }
 
   // If combined StaticText equals the parent's name, filter them out
   if (combinedText === parentNorm) {
-    return children.filter((c) => c.role !== "StaticText");
+    return children.filter((c) => c.role !== 'StaticText');
   }
   return children;
 }
@@ -1133,9 +1014,9 @@ function extractUrlFromAXNode(axNode: AccessibilityNode): string | undefined {
   if (!axNode.properties) return undefined;
 
   // Find a property named 'url'
-  const urlProp = axNode.properties.find((prop) => prop.name === "url");
+  const urlProp = axNode.properties.find((prop) => prop.name === 'url');
   // Return the trimmed URL string if the property exists and is valid
-  if (urlProp && urlProp.value && typeof urlProp.value.value === "string") {
+  if (urlProp && urlProp.value && typeof urlProp.value.value === 'string') {
     return urlProp.value.value.trim();
   }
   return undefined;
@@ -1157,9 +1038,9 @@ function extractUrlFromAXNode(axNode: AccessibilityNode): string | undefined {
  */
 export async function resolveFrameChain(
   sp: StagehandPage,
-  absPath: string, // must start with '/'
+  absPath: string // must start with '/'
 ): Promise<{ frames: Frame[]; rest: string }> {
-  let path = absPath.startsWith("/") ? absPath : "/" + absPath;
+  let path = absPath.startsWith('/') ? absPath : '/' + absPath;
   let ctxFrame: Frame | undefined = undefined; // current frame
   const chain: Frame[] = []; // collected frames
 
@@ -1173,7 +1054,7 @@ export async function resolveFrameChain(
     }
 
     /*  Otherwise: accumulate steps until we include an <iframe> step  */
-    const steps = path.split("/").filter(Boolean);
+    const steps = path.split('/').filter(Boolean);
     const buf: string[] = [];
 
     for (let i = 0; i < steps.length; i++) {
@@ -1181,17 +1062,15 @@ export async function resolveFrameChain(
 
       if (IFRAME_STEP_RE.test(steps[i])) {
         // “/…/iframe[k]” found – descend into that frame
-        const selector = "xpath=/" + buf.join("/");
+        const selector = 'xpath=/' + buf.join('/');
         const handle = (ctxFrame ?? sp.page.mainFrame()).locator(selector);
-        const frame = await handle
-          .elementHandle()
-          .then((h) => h?.contentFrame());
+        const frame = await handle.elementHandle().then((h) => h?.contentFrame());
 
         if (!frame) throw new ContentFrameNotFoundError(selector);
 
         chain.push(frame);
         ctxFrame = frame;
-        path = "/" + steps.slice(i + 1).join("/"); // remainder
+        path = '/' + steps.slice(i + 1).join('/'); // remainder
         break;
       }
 
@@ -1208,91 +1087,91 @@ export async function performPlaywrightMethod(
   logger: (logLine: LogLine) => void,
   method: string,
   args: unknown[],
-  xpath: string,
+  xpath: string
 ) {
   const locator = stagehandPage.locator(`xpath=${xpath}`).first();
   const initialUrl = stagehandPage.url();
 
   logger({
-    category: "action",
-    message: "performing playwright method",
+    category: 'action',
+    message: 'performing playwright method',
     level: 2,
     auxiliary: {
       xpath: {
         value: xpath,
-        type: "string",
+        type: 'string',
       },
       method: {
         value: method,
-        type: "string",
+        type: 'string',
       },
     },
   });
 
-  if (method === "scrollIntoView") {
+  if (method === 'scrollIntoView') {
     logger({
-      category: "action",
-      message: "scrolling element into view",
+      category: 'action',
+      message: 'scrolling element into view',
       level: 2,
       auxiliary: {
         xpath: {
           value: xpath,
-          type: "string",
+          type: 'string',
         },
       },
     });
     try {
       await locator
         .evaluate((element: HTMLElement) => {
-          element.scrollIntoView({ behavior: "smooth", block: "center" });
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
         })
         .catch((e: Error) => {
           logger({
-            category: "action",
-            message: "error scrolling element into view",
+            category: 'action',
+            message: 'error scrolling element into view',
             level: 1,
             auxiliary: {
               error: {
                 value: e.message,
-                type: "string",
+                type: 'string',
               },
               trace: {
                 value: e.stack,
-                type: "string",
+                type: 'string',
               },
               xpath: {
                 value: xpath,
-                type: "string",
+                type: 'string',
               },
             },
           });
         });
     } catch (e) {
       logger({
-        category: "action",
-        message: "error scrolling element into view",
+        category: 'action',
+        message: 'error scrolling element into view',
         level: 1,
         auxiliary: {
           error: {
             value: e.message,
-            type: "string",
+            type: 'string',
           },
           trace: {
             value: e.stack,
-            type: "string",
+            type: 'string',
           },
           xpath: {
             value: xpath,
-            type: "string",
+            type: 'string',
           },
         },
       });
 
       throw new PlaywrightCommandException(e.message);
     }
-  } else if (method === "fill" || method === "type") {
+  } else if (method === 'fill' || method === 'type') {
     try {
-      await locator.fill("");
+      await locator.fill('');
       await locator.click();
       const text = args[0]?.toString();
       for (const char of text) {
@@ -1302,100 +1181,98 @@ export async function performPlaywrightMethod(
       }
     } catch (e) {
       logger({
-        category: "action",
-        message: "error filling element",
+        category: 'action',
+        message: 'error filling element',
         level: 1,
         auxiliary: {
           error: {
             value: e.message,
-            type: "string",
+            type: 'string',
           },
           trace: {
             value: e.stack,
-            type: "string",
+            type: 'string',
           },
           xpath: {
             value: xpath,
-            type: "string",
+            type: 'string',
           },
         },
       });
 
       throw new PlaywrightCommandException(e.message);
     }
-  } else if (method === "press") {
+  } else if (method === 'press') {
     try {
       const key = args[0]?.toString();
       await stagehandPage.keyboard.press(key);
     } catch (e) {
       logger({
-        category: "action",
-        message: "error pressing key",
+        category: 'action',
+        message: 'error pressing key',
         level: 1,
         auxiliary: {
           error: {
             value: e.message,
-            type: "string",
+            type: 'string',
           },
           trace: {
             value: e.stack,
-            type: "string",
+            type: 'string',
           },
           key: {
-            value: args[0]?.toString() ?? "unknown",
-            type: "string",
+            value: args[0]?.toString() ?? 'unknown',
+            type: 'string',
           },
         },
       });
 
       throw new PlaywrightCommandException(e.message);
     }
-  } else if (typeof locator[method as keyof typeof locator] === "function") {
+  } else if (typeof locator[method as keyof typeof locator] === 'function') {
     // Log current URL before action
     logger({
-      category: "action",
-      message: "page URL before action",
+      category: 'action',
+      message: 'page URL before action',
       level: 2,
       auxiliary: {
         url: {
           value: stagehandPage.url(),
-          type: "string",
+          type: 'string',
         },
       },
     });
 
     // Perform the action
     try {
-      await (
-        locator[method as keyof Locator] as unknown as (
-          ...args: string[]
-        ) => Promise<void>
-      )(...args.map((arg) => arg?.toString() || ""));
+      await (locator[method as keyof Locator] as unknown as (...args: string[]) => Promise<void>)(
+        ...args.map((arg) => arg?.toString() || '')
+      );
     } catch (e) {
       logger({
-        category: "action",
-        message: "error performing method",
+        category: 'action',
+        message: 'error performing method',
         level: 1,
         auxiliary: {
           error: {
             value: e.message,
-            type: "string",
+            type: 'string',
           },
           trace: {
             value: e.stack,
-            type: "string",
+            type: 'string',
           },
           xpath: {
             value: xpath,
-            type: "string",
+            type: 'string',
           },
           method: {
             value: method,
-            type: "string",
+            type: 'string',
           },
           args: {
             value: JSON.stringify(args),
-            type: "object",
+            type: 'object',
           },
         },
       });
@@ -1404,15 +1281,15 @@ export async function performPlaywrightMethod(
     }
 
     // Handle navigation if a new page is opened
-    if (method === "click") {
+    if (method === 'click') {
       logger({
-        category: "action",
-        message: "clicking element, checking for page navigation",
+        category: 'action',
+        message: 'clicking element, checking for page navigation',
         level: 1,
         auxiliary: {
           xpath: {
             value: xpath,
-            type: "string",
+            type: 'string',
           },
         },
       });
@@ -1420,77 +1297,77 @@ export async function performPlaywrightMethod(
       const newOpenedTab = await Promise.race([
         new Promise<Page | null>((resolve) => {
           Promise.resolve(stagehandPage.context()).then((context) => {
-            context.once("page", (page: Page) => resolve(page));
+            context.once('page', (page: Page) => resolve(page));
             setTimeout(() => resolve(null), 1_500);
           });
         }),
       ]);
 
       logger({
-        category: "action",
-        message: "clicked element",
+        category: 'action',
+        message: 'clicked element',
         level: 1,
         auxiliary: {
           newOpenedTab: {
-            value: newOpenedTab ? "opened a new tab" : "no new tabs opened",
-            type: "string",
+            value: newOpenedTab ? 'opened a new tab' : 'no new tabs opened',
+            type: 'string',
           },
         },
       });
 
       if (newOpenedTab) {
         logger({
-          category: "action",
-          message: "new page detected (new tab) with URL",
+          category: 'action',
+          message: 'new page detected (new tab) with URL',
           level: 1,
           auxiliary: {
             url: {
               value: newOpenedTab.url(),
-              type: "string",
+              type: 'string',
             },
           },
         });
         await newOpenedTab.close();
         await stagehandPage.goto(newOpenedTab.url());
-        await stagehandPage.waitForLoadState("domcontentloaded");
+        await stagehandPage.waitForLoadState('domcontentloaded');
       }
 
       await Promise.race([
-        stagehandPage.waitForLoadState("networkidle"),
+        stagehandPage.waitForLoadState('networkidle'),
         new Promise((resolve) => setTimeout(resolve, 5_000)),
       ]).catch((e) => {
         logger({
-          category: "action",
-          message: "network idle timeout hit",
+          category: 'action',
+          message: 'network idle timeout hit',
           level: 1,
           auxiliary: {
             trace: {
               value: e.stack,
-              type: "string",
+              type: 'string',
             },
             message: {
               value: e.message,
-              type: "string",
+              type: 'string',
             },
           },
         });
       });
 
       logger({
-        category: "action",
-        message: "finished waiting for (possible) page navigation",
+        category: 'action',
+        message: 'finished waiting for (possible) page navigation',
         level: 1,
       });
 
       if (stagehandPage.url() !== initialUrl) {
         logger({
-          category: "action",
-          message: "new page detected with URL",
+          category: 'action',
+          message: 'new page detected with URL',
           level: 1,
           auxiliary: {
             url: {
               value: stagehandPage.url(),
-              type: "string",
+              type: 'string',
             },
           },
         });
@@ -1498,19 +1375,17 @@ export async function performPlaywrightMethod(
     }
   } else {
     logger({
-      category: "action",
-      message: "chosen method is invalid",
+      category: 'action',
+      message: 'chosen method is invalid',
       level: 1,
       auxiliary: {
         method: {
           value: method,
-          type: "string",
+          type: 'string',
         },
       },
     });
 
-    throw new PlaywrightCommandMethodNotSupportedException(
-      `Method ${method} not supported`,
-    );
+    throw new PlaywrightCommandMethodNotSupportedException(`Method ${method} not supported`);
   }
 }

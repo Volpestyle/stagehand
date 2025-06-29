@@ -1,17 +1,14 @@
-import { z, ZodTypeAny } from "zod";
-import { LogLine } from "../../types/log";
-import { ZodPathSegments } from "../../types/stagehand";
-import { extract } from "../inference";
-import { LLMClient } from "../llm/LLMClient";
-import { injectUrls, transformSchema } from "../utils";
-import { StagehandPage } from "../StagehandPage";
-import { Stagehand, StagehandFunctionName } from "../index";
-import { pageTextSchema } from "../../types/page";
-import {
-  getAccessibilityTree,
-  getAccessibilityTreeWithFrames,
-} from "@/lib/a11y/utils";
-import { EncodedId } from "@/types/context";
+import { z, ZodTypeAny } from 'zod';
+import { LogLine } from '../../types/log';
+import { ZodPathSegments } from '../../types/stagehand';
+import { extract } from '../inference';
+import { LLMClient } from '../llm/LLMClient';
+import { injectUrls, transformSchema } from '../utils';
+import { StagehandPage } from '../StagehandPage';
+import { Stagehand, StagehandFunctionName } from '../index';
+import { pageTextSchema } from '../../types/page';
+import { getAccessibilityTree, getAccessibilityTreeWithFrames } from '@/lib/a11y/utils';
+import { EncodedId } from '@/types/context';
 
 export class StagehandExtractHandler {
   private readonly stagehand: Stagehand;
@@ -66,8 +63,8 @@ export class StagehandExtractHandler {
     const noArgsCalled = !instruction && !schema && !llmClient && !selector;
     if (noArgsCalled) {
       this.logger({
-        category: "extraction",
-        message: "Extracting the entire page text.",
+        category: 'extraction',
+        message: 'Extracting the entire page text.',
         level: 1,
       });
       return this.extractPageText();
@@ -75,9 +72,9 @@ export class StagehandExtractHandler {
 
     if (useTextExtract !== undefined) {
       this.logger({
-        category: "extraction",
+        category: 'extraction',
         message:
-          "Warning: the `useTextExtract` parameter has no effect in this version of Stagehand and will be removed in future versions.",
+          'Warning: the `useTextExtract` parameter has no effect in this version of Stagehand and will be removed in future versions.',
         level: 1,
       });
     }
@@ -93,14 +90,12 @@ export class StagehandExtractHandler {
     });
   }
 
-  private async extractPageText(
-    domSettleTimeoutMs?: number,
-  ): Promise<{ page_text?: string }> {
+  private async extractPageText(domSettleTimeoutMs?: number): Promise<{ page_text?: string }> {
     await this.stagehandPage._waitForSettledDom(domSettleTimeoutMs);
     const tree = await getAccessibilityTree(this.stagehandPage, this.logger);
     this.logger({
-      category: "extraction",
-      message: "Getting accessibility tree data",
+      category: 'extraction',
+      message: 'Getting accessibility tree data',
       level: 1,
     });
     const outputString = tree.simplified;
@@ -128,60 +123,57 @@ export class StagehandExtractHandler {
     iframes?: boolean;
   }): Promise<z.infer<T>> {
     this.logger({
-      category: "extraction",
-      message: "starting extraction using a11y tree",
+      category: 'extraction',
+      message: 'starting extraction using a11y tree',
       level: 1,
       auxiliary: {
         instruction: {
           value: instruction,
-          type: "string",
+          type: 'string',
         },
       },
     });
 
     await this.stagehandPage._waitForSettledDom(domSettleTimeoutMs);
-    const targetXpath = selector?.replace(/^xpath=/, "") ?? "";
+    const targetXpath = selector?.replace(/^xpath=/, '') ?? '';
     const {
       combinedTree: outputString,
       combinedUrlMap: idToUrlMapping,
       discoveredIframes,
     } = await (iframes
-      ? getAccessibilityTreeWithFrames(
-          this.stagehandPage,
-          this.logger,
-          targetXpath,
-        ).then(({ combinedTree, combinedUrlMap }) => ({
-          combinedTree,
-          combinedUrlMap,
-          combinedXpathMap: {} as Record<EncodedId, string>,
-          discoveredIframes: [] as undefined,
-        }))
+      ? getAccessibilityTreeWithFrames(this.stagehandPage, this.logger, targetXpath).then(
+          ({ combinedTree, combinedUrlMap }) => ({
+            combinedTree,
+            combinedUrlMap,
+            combinedXpathMap: {} as Record<EncodedId, string>,
+            discoveredIframes: [] as undefined,
+          })
+        )
       : getAccessibilityTree(this.stagehandPage, this.logger, selector).then(
           ({ simplified, idToUrl, iframes: frameNodes }) => ({
             combinedTree: simplified,
             combinedUrlMap: idToUrl as Record<EncodedId, string>,
             combinedXpathMap: {} as Record<EncodedId, string>,
             discoveredIframes: frameNodes,
-          }),
+          })
         ));
 
     this.logger({
-      category: "extraction",
-      message: "Got accessibility tree data",
+      category: 'extraction',
+      message: 'Got accessibility tree data',
       level: 1,
     });
 
     if (discoveredIframes !== undefined && discoveredIframes.length > 0) {
       this.logger({
-        category: "extraction",
+        category: 'extraction',
         message: `Warning: found ${discoveredIframes.length} iframe(s) on the page. If you wish to interact with iframe content, please make sure you are setting iframes: true`,
         level: 1,
       });
     }
 
     // Transform user defined schema to replace string().url() with .number()
-    const [transformedSchema, urlFieldPaths] =
-      transformUrlStringsToNumericIds(schema);
+    const [transformedSchema, urlFieldPaths] = transformUrlStringsToNumericIds(schema);
 
     // call extract inference with transformed schema
     const extractionResponse = await extract({
@@ -205,45 +197,40 @@ export class StagehandExtractHandler {
       ...output
     } = extractionResponse;
 
-    this.stagehand.updateMetrics(
-      StagehandFunctionName.EXTRACT,
-      promptTokens,
-      completionTokens,
-      inferenceTimeMs,
-    );
+    this.stagehand.updateMetrics(StagehandFunctionName.EXTRACT, promptTokens, completionTokens, inferenceTimeMs);
 
     this.logger({
-      category: "extraction",
-      message: "received extraction response",
+      category: 'extraction',
+      message: 'received extraction response',
       auxiliary: {
         extraction_response: {
           value: JSON.stringify(extractionResponse),
-          type: "object",
+          type: 'object',
         },
       },
     });
 
     if (completed) {
       this.logger({
-        category: "extraction",
-        message: "extraction completed successfully",
+        category: 'extraction',
+        message: 'extraction completed successfully',
         level: 1,
         auxiliary: {
           extraction_response: {
             value: JSON.stringify(extractionResponse),
-            type: "object",
+            type: 'object',
           },
         },
       });
     } else {
       this.logger({
-        category: "extraction",
-        message: "extraction incomplete after processing all data",
+        category: 'extraction',
+        message: 'extraction incomplete after processing all data',
         level: 1,
         auxiliary: {
           extraction_response: {
             value: JSON.stringify(extractionResponse),
-            type: "object",
+            type: 'object',
           },
         },
       });
@@ -283,9 +270,9 @@ export class StagehandExtractHandler {
  *   2. An array of {@link ZodPathSegments} objects representing all the replaced URL fields,
  *      with each path segment showing where in the schema the replacement occurred.
  */
-export function transformUrlStringsToNumericIds<
-  T extends z.ZodObject<z.ZodRawShape>,
->(schema: T): [T, ZodPathSegments[]] {
+export function transformUrlStringsToNumericIds<T extends z.ZodObject<z.ZodRawShape>>(
+  schema: T
+): [T, ZodPathSegments[]] {
   const shape = schema._def.shape();
   const newShape: Record<string, ZodTypeAny> = {};
   const urlPaths: ZodPathSegments[] = [];

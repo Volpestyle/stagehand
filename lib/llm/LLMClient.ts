@@ -1,7 +1,7 @@
-import { ZodType } from "zod";
-import { LLMTool } from "../../types/llm";
-import { LogLine } from "../../types/log";
-import { AvailableModel, ClientOptions } from "../../types/model";
+import { ZodType } from 'zod';
+import { LLMTool } from '../../types/llm';
+import { LogLine } from '../../types/log';
+import { AvailableModel, ClientOptions } from '../../types/model';
 import {
   generateObject,
   generateText,
@@ -12,16 +12,14 @@ import {
   embedMany,
   experimental_transcribe,
   experimental_generateSpeech,
-} from "ai";
+} from 'ai';
 
 export interface ChatMessage {
-  role: "system" | "user" | "assistant";
+  role: 'system' | 'user' | 'assistant';
   content: ChatMessageContent;
 }
 
-export type ChatMessageContent =
-  | string
-  | (ChatMessageImageContent | ChatMessageTextContent)[];
+export type ChatMessageContent = string | (ChatMessageImageContent | ChatMessageTextContent)[];
 
 export interface ChatMessageImageContent {
   type: string;
@@ -40,7 +38,7 @@ export interface ChatMessageTextContent {
 }
 
 export const AnnotatedScreenshotText =
-  "This is a screenshot of the current page state with the elements annotated on it. Each element id is annotated with a number to the top left of it. Duplicate annotations at the same location are under each other vertically.";
+  'This is a screenshot of the current page state with the elements annotated on it. Each element id is annotated with a number to the top left of it. Duplicate annotations at the same location are under each other vertically.';
 
 export interface ChatCompletionOptions {
   messages: ChatMessage[];
@@ -57,7 +55,7 @@ export interface ChatCompletionOptions {
     schema: ZodType;
   };
   tools?: LLMTool[];
-  tool_choice?: "auto" | "none" | "required";
+  tool_choice?: 'auto' | 'none' | 'required';
   maxTokens?: number;
   requestId?: string;
 }
@@ -97,7 +95,7 @@ export interface CreateChatCompletionOptions {
 }
 
 export abstract class LLMClient {
-  public type: "openai" | "anthropic" | "cerebras" | "groq" | (string & {});
+  public type: 'openai' | 'anthropic' | 'cerebras' | 'groq' | (string & {});
   public modelName: AvailableModel | (string & {});
   public hasVision: boolean;
   public clientOptions: ClientOptions;
@@ -110,7 +108,7 @@ export abstract class LLMClient {
 
   abstract createChatCompletion<
     T = LLMResponse & {
-      usage?: LLMResponse["usage"];
+      usage?: LLMResponse['usage'];
     },
   >(options: CreateChatCompletionOptions): Promise<T>;
 

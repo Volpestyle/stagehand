@@ -1,10 +1,10 @@
-import { Browser } from "@playwright/test";
-import { LogLine } from "./log";
+import { Browser } from '@playwright/test';
+import { LogLine } from './log';
 
 /**
  * Supported provider types for browser automation
  */
-export type ProviderType = "local" | "aws";
+export type ProviderType = 'local' | 'aws';
 
 /**
  * Session information returned by a provider
@@ -127,11 +127,7 @@ export interface IBrowserProvider {
   /**
    * Save an artifact to provider storage
    */
-  saveArtifact(
-    sessionId: string,
-    path: string,
-    data: Buffer,
-  ): Promise<Artifact>;
+  saveArtifact(sessionId: string, path: string, data: Buffer): Promise<Artifact>;
 
   /**
    * List artifacts for a session

@@ -1,5 +1,5 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { LogLine } from "@/types/log";
+import Anthropic from '@anthropic-ai/sdk';
+import { LogLine } from '@/types/log';
 import {
   AgentAction,
   AgentResult,
@@ -10,9 +10,9 @@ import {
   AnthropicContentBlock,
   AnthropicTextBlock,
   AnthropicToolResult,
-} from "@/types/agent";
-import { AgentClient } from "./AgentClient";
-import { AgentScreenshotProviderError } from "@/types/stagehandErrors";
+} from '@/types/agent';
+import { AgentClient } from './AgentClient';
+import { AgentScreenshotProviderError } from '@/types/stagehandErrors';
 
 export type ResponseInputItem = AnthropicMessage | AnthropicToolResult;
 
@@ -35,20 +35,16 @@ export class AnthropicCUAClient extends AgentClient {
     type: AgentType,
     modelName: string,
     userProvidedInstructions?: string,
-    clientOptions?: Record<string, unknown>,
+    clientOptions?: Record<string, unknown>
   ) {
     super(type, modelName, userProvidedInstructions);
 
     // Process client options
-    this.apiKey =
-      (clientOptions?.apiKey as string) || process.env.ANTHROPIC_API_KEY || "";
+    this.apiKey = (clientOptions?.apiKey as string) || process.env.ANTHROPIC_API_KEY || '';
     this.baseURL = (clientOptions?.baseURL as string) || undefined;
 
     // Get thinking budget if specified
-    if (
-      clientOptions?.thinkingBudget &&
-      typeof clientOptions.thinkingBudget === "number"
-    ) {
+    if (clientOptions?.thinkingBudget && typeof clientOptions.thinkingBudget === 'number') {
       this.thinkingBudget = clientOptions.thinkingBudget;
     }
 
@@ -95,14 +91,13 @@ export class AnthropicCUAClient extends AgentClient {
     let completed = false;
     const actions: AgentAction[] = [];
     const messageList: string[] = [];
-    let finalMessage = "";
+    let finalMessage = '';
 
     // Start with the initial instruction
-    let inputItems: ResponseInputItem[] =
-      this.createInitialInputItems(instruction);
+    let inputItems: ResponseInputItem[] = this.createInitialInputItems(instruction);
 
     logger({
-      category: "agent",
+      category: 'agent',
       message: `Starting Anthropic agent execution with instruction: ${instruction}`,
       level: 1,
     });
@@ -115,7 +110,7 @@ export class AnthropicCUAClient extends AgentClient {
       // Execute steps until completion or max steps reached
       while (!completed && currentStep < maxSteps) {
         logger({
-          category: "agent",
+          category: 'agent',
           message: `Executing step ${currentStep + 1}/${maxSteps}`,
           level: 2,
         });
@@ -128,7 +123,7 @@ export class AnthropicCUAClient extends AgentClient {
         // Add actions to the list
         if (result.actions.length > 0) {
           logger({
-            category: "agent",
+            category: 'agent',
             message: `Step ${currentStep + 1} performed ${result.actions.length} actions`,
             level: 2,
           });
@@ -154,7 +149,7 @@ export class AnthropicCUAClient extends AgentClient {
       }
 
       logger({
-        category: "agent",
+        category: 'agent',
         message: `Anthropic agent execution completed: ${completed}, with ${actions.length} total actions performed`,
         level: 1,
       });
@@ -172,10 +167,9 @@ export class AnthropicCUAClient extends AgentClient {
         },
       };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       logger({
-        category: "agent",
+        category: 'agent',
         message: `Error executing agent task: ${errorMessage}`,
         level: 0,
       });
@@ -196,7 +190,7 @@ export class AnthropicCUAClient extends AgentClient {
 
   async executeStep(
     inputItems: ResponseInputItem[],
-    logger: (message: LogLine) => void,
+    logger: (message: LogLine) => void
   ): Promise<{
     actions: AgentAction[];
     message: string;
@@ -219,7 +213,7 @@ export class AnthropicCUAClient extends AgentClient {
       };
 
       logger({
-        category: "agent",
+        category: 'agent',
         message: `Received response with ${content.length} content blocks`,
         level: 2,
       });
@@ -227,24 +221,24 @@ export class AnthropicCUAClient extends AgentClient {
       // Extract actions from the content
       const stepActions: AgentAction[] = [];
       const toolUseItems: ToolUseItem[] = [];
-      let message = "";
+      let message = '';
 
       // Process content blocks to find tool use items and text content
       for (const block of content) {
         // Log the block for debugging
-        console.log("Processing block:", JSON.stringify(block, null, 2));
+        console.log('Processing block:', JSON.stringify(block, null, 2));
 
         // Enhanced logging for debugging
         logger({
-          category: "agent",
-          message: `Processing block type: ${block.type}, id: ${block.id || "unknown"}`,
+          category: 'agent',
+          message: `Processing block type: ${block.type}, id: ${block.id || 'unknown'}`,
           level: 2,
         });
 
-        if (block.type === "tool_use") {
+        if (block.type === 'tool_use') {
           // Direct handling of tool_use type
           logger({
-            category: "agent",
+            category: 'agent',
             message: `Found tool_use block: ${JSON.stringify(block)}`,
             level: 2,
           });
@@ -254,7 +248,7 @@ export class AnthropicCUAClient extends AgentClient {
           toolUseItems.push(toolUseItem);
 
           logger({
-            category: "agent",
+            category: 'agent',
             message: `Added tool_use item: ${toolUseItem.name}, action: ${JSON.stringify(toolUseItem.input)}`,
             level: 2,
           });
@@ -263,25 +257,25 @@ export class AnthropicCUAClient extends AgentClient {
           const action = this.convertToolUseToAction(toolUseItem);
           if (action) {
             logger({
-              category: "agent",
+              category: 'agent',
               message: `Created action from tool_use: ${toolUseItem.name}, action: ${action.type}`,
               level: 2,
             });
             stepActions.push(action);
           }
-        } else if (block.type === "text") {
+        } else if (block.type === 'text') {
           // Safe to cast here since we've verified it's a text block
           const textBlock = block as unknown as AnthropicTextBlock;
-          message += textBlock.text + "\n";
+          message += textBlock.text + '\n';
 
           logger({
-            category: "agent",
+            category: 'agent',
             message: `Found text block: ${textBlock.text.substring(0, 50)}...`,
             level: 2,
           });
         } else {
           logger({
-            category: "agent",
+            category: 'agent',
             message: `Found unknown block type: ${block.type}`,
             level: 2,
           });
@@ -293,16 +287,15 @@ export class AnthropicCUAClient extends AgentClient {
         for (const action of stepActions) {
           try {
             logger({
-              category: "agent",
+              category: 'agent',
               message: `Executing action: ${action.type}`,
               level: 1,
             });
             await this.actionHandler(action);
           } catch (error) {
-            const errorMessage =
-              error instanceof Error ? error.message : String(error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
             logger({
-              category: "agent",
+              category: 'agent',
               message: `Error executing action ${action.type}: ${errorMessage}`,
               level: 0,
             });
@@ -312,7 +305,7 @@ export class AnthropicCUAClient extends AgentClient {
 
       // Create the assistant response message with all content blocks
       const assistantMessage: AnthropicMessage = {
-        role: "assistant",
+        role: 'assistant',
         content: content as unknown as AnthropicContentBlock[],
       };
 
@@ -330,7 +323,7 @@ export class AnthropicCUAClient extends AgentClient {
         if (toolResults.length > 0) {
           // We wrap the tool results in a user message
           const userToolResultsMessage: AnthropicMessage = {
-            role: "user",
+            role: 'user',
             content: toolResults as unknown as AnthropicContentBlock[],
           };
           nextInputItems.push(userToolResultsMessage);
@@ -341,7 +334,7 @@ export class AnthropicCUAClient extends AgentClient {
       const completed = toolUseItems.length === 0;
 
       logger({
-        category: "agent",
+        category: 'agent',
         message: `Step processed ${toolUseItems.length} tool use items, completed: ${completed}`,
         level: 2,
       });
@@ -354,10 +347,9 @@ export class AnthropicCUAClient extends AgentClient {
         usage: usage,
       };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       logger({
-        category: "agent",
+        category: 'agent',
         message: `Error executing step: ${errorMessage}`,
         level: 0,
       });
@@ -370,11 +362,11 @@ export class AnthropicCUAClient extends AgentClient {
     // For the initial request, we use a simple array with the user's instruction
     return [
       {
-        role: "system",
+        role: 'system',
         content: this.userProvidedInstructions,
       },
       {
-        role: "user",
+        role: 'user',
         content: instruction,
       },
     ];
@@ -391,9 +383,9 @@ export class AnthropicCUAClient extends AgentClient {
       const messages: AnthropicMessage[] = [];
 
       for (const item of inputItems) {
-        if ("role" in item) {
+        if ('role' in item) {
           // Skip system messages as Anthropic requires system as a top-level parameter
-          if (item.role !== "system") {
+          if (item.role !== 'system') {
             messages.push(item);
           }
         }
@@ -403,7 +395,7 @@ export class AnthropicCUAClient extends AgentClient {
 
       // Configure thinking capability if available
       const thinking = this.thinkingBudget
-        ? { type: "enabled" as const, budget_tokens: this.thinkingBudget }
+        ? { type: 'enabled' as const, budget_tokens: this.thinkingBudget }
         : undefined;
 
       // Create the request parameters
@@ -413,14 +405,14 @@ export class AnthropicCUAClient extends AgentClient {
         messages: messages,
         tools: [
           {
-            type: "computer_20250124", // Use the latest version for Claude 3.7 Sonnet
-            name: "computer",
+            type: 'computer_20250124', // Use the latest version for Claude 3.7 Sonnet
+            name: 'computer',
             display_width_px: this.currentViewport.width,
             display_height_px: this.currentViewport.height,
             display_number: 1,
           },
         ],
-        betas: ["computer-use-2025-01-24"],
+        betas: ['computer-use-2025-01-24'],
       };
 
       // Add system parameter if provided
@@ -437,12 +429,10 @@ export class AnthropicCUAClient extends AgentClient {
       if (messages.length > 0) {
         const firstMessage = messages[0];
         const contentPreview =
-          typeof firstMessage.content === "string"
-            ? firstMessage.content.substring(0, 50)
-            : "complex content";
+          typeof firstMessage.content === 'string' ? firstMessage.content.substring(0, 50) : 'complex content';
 
         console.log(
-          `Sending request to Anthropic with ${messages.length} messages and ${messages.length > 0 ? `first message role: ${messages[0].role}, content: ${contentPreview}...` : "no messages"}`,
+          `Sending request to Anthropic with ${messages.length} messages and ${messages.length > 0 ? `first message role: ${messages[0].role}, content: ${contentPreview}...` : 'no messages'}`
         );
       }
 
@@ -469,19 +459,16 @@ export class AnthropicCUAClient extends AgentClient {
         usage,
       };
     } catch (error) {
-      console.error("Error getting action from Anthropic:", error);
+      console.error('Error getting action from Anthropic:', error);
       throw error;
     }
   }
 
-  async takeAction(
-    toolUseItems: ToolUseItem[],
-    logger: (message: LogLine) => void,
-  ): Promise<ResponseInputItem[]> {
+  async takeAction(toolUseItems: ToolUseItem[], logger: (message: LogLine) => void): Promise<ResponseInputItem[]> {
     const nextInputItems: ResponseInputItem[] = [];
 
     logger({
-      category: "agent",
+      category: 'agent',
       message: `Taking action on ${toolUseItems.length} tool use items`,
       level: 2,
     });
@@ -490,7 +477,7 @@ export class AnthropicCUAClient extends AgentClient {
     for (const item of toolUseItems) {
       try {
         logger({
-          category: "agent",
+          category: 'agent',
           message: `Processing tool use: ${item.name}, id: ${item.id}, action: ${JSON.stringify(item.input)}`,
           level: 2,
         });
@@ -498,11 +485,11 @@ export class AnthropicCUAClient extends AgentClient {
         // TODO: Normalize and migrate to agentHandler
 
         // For computer tool, capture screenshot and return image
-        if (item.name === "computer") {
+        if (item.name === 'computer') {
           // Get action type
           const action = item.input.action as string;
           logger({
-            category: "agent",
+            category: 'agent',
             message: `Computer action type: ${action}`,
             level: 2,
           });
@@ -510,7 +497,7 @@ export class AnthropicCUAClient extends AgentClient {
           // Capture a screenshot for the response
           const screenshot = await this.captureScreenshot();
           logger({
-            category: "agent",
+            category: 'agent',
             message: `Screenshot captured, length: ${screenshot.length}`,
             level: 2,
           });
@@ -518,11 +505,11 @@ export class AnthropicCUAClient extends AgentClient {
           // Create proper image content block for Anthropic
           const imageContent = [
             {
-              type: "image",
+              type: 'image',
               source: {
-                type: "base64",
-                media_type: "image/png",
-                data: screenshot.replace(/^data:image\/png;base64,/, ""),
+                type: 'base64',
+                media_type: 'image/png',
+                data: screenshot.replace(/^data:image\/png;base64,/, ''),
               },
             },
           ];
@@ -530,92 +517,91 @@ export class AnthropicCUAClient extends AgentClient {
           // Add current URL if available
           if (this.currentUrl) {
             nextInputItems.push({
-              type: "tool_result",
+              type: 'tool_result',
               tool_use_id: item.id,
               content: [
                 ...imageContent,
                 {
-                  type: "text",
+                  type: 'text',
                   text: `Current URL: ${this.currentUrl}`,
                 },
               ],
             });
           } else {
             nextInputItems.push({
-              type: "tool_result",
+              type: 'tool_result',
               tool_use_id: item.id,
               content: imageContent,
             });
           }
 
           logger({
-            category: "agent",
+            category: 'agent',
             message: `Added computer tool result for tool_use_id: ${item.id}`,
             level: 2,
           });
         } else {
           // For any other tools, return a simple result as a string
           nextInputItems.push({
-            type: "tool_result",
+            type: 'tool_result',
             tool_use_id: item.id,
-            content: "Tool executed successfully",
+            content: 'Tool executed successfully',
           });
 
           logger({
-            category: "agent",
+            category: 'agent',
             message: `Added generic tool result for tool ${item.name}, tool_use_id: ${item.id}`,
             level: 2,
           });
         }
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
 
         logger({
-          category: "agent",
+          category: 'agent',
           message: `Error executing tool use: ${errorMessage}`,
           level: 0,
         });
 
         try {
           // For computer tool, try to capture a screenshot even on error
-          if (item.name === "computer") {
+          if (item.name === 'computer') {
             const screenshot = await this.captureScreenshot();
 
             nextInputItems.push({
-              type: "tool_result",
+              type: 'tool_result',
               tool_use_id: item.id,
               content: [
                 {
-                  type: "image",
+                  type: 'image',
                   source: {
-                    type: "base64",
-                    media_type: "image/png",
-                    data: screenshot.replace(/^data:image\/png;base64,/, ""),
+                    type: 'base64',
+                    media_type: 'image/png',
+                    data: screenshot.replace(/^data:image\/png;base64,/, ''),
                   },
                 },
                 {
-                  type: "text",
+                  type: 'text',
                   text: `Error: ${errorMessage}`,
                 },
               ],
             });
 
             logger({
-              category: "agent",
+              category: 'agent',
               message: `Added error tool result with screenshot for tool_use_id: ${item.id}`,
               level: 1,
             });
           } else {
             // For other tools, return an error message as a string
             nextInputItems.push({
-              type: "tool_result",
+              type: 'tool_result',
               tool_use_id: item.id,
               content: `Error: ${errorMessage}`,
             });
 
             logger({
-              category: "agent",
+              category: 'agent',
               message: `Added error tool result for tool_use_id: ${item.id}`,
               level: 1,
             });
@@ -623,19 +609,19 @@ export class AnthropicCUAClient extends AgentClient {
         } catch (screenshotError) {
           // If we can't capture a screenshot, just send the error
           logger({
-            category: "agent",
+            category: 'agent',
             message: `Error capturing screenshot: ${String(screenshotError)}`,
             level: 0,
           });
 
           nextInputItems.push({
-            type: "tool_result",
+            type: 'tool_result',
             tool_use_id: item.id,
             content: `Error: ${errorMessage}`,
           });
 
           logger({
-            category: "agent",
+            category: 'agent',
             message: `Added text error tool result for tool_use_id: ${item.id}`,
             level: 1,
           });
@@ -644,7 +630,7 @@ export class AnthropicCUAClient extends AgentClient {
     }
 
     logger({
-      category: "agent",
+      category: 'agent',
       message: `Prepared ${nextInputItems.length} input items for next request`,
       level: 2,
     });
@@ -656,56 +642,52 @@ export class AnthropicCUAClient extends AgentClient {
     try {
       const { name, input } = item;
 
-      if (name === "computer") {
+      if (name === 'computer') {
         // For computer actions, format according to the action type
         const action = input.action as string;
 
         if (!action) {
-          console.warn("Missing action in tool use item:", item);
+          console.warn('Missing action in tool use item:', item);
           return null;
         }
 
         // Handle different action types specifically
-        if (action === "screenshot") {
+        if (action === 'screenshot') {
           return {
-            type: "screenshot",
+            type: 'screenshot',
             ...input,
           };
-        } else if (action === "click") {
+        } else if (action === 'click') {
           return {
-            type: "click",
+            type: 'click',
             x: input.x as number,
             y: input.y as number,
-            button: (input.button as string) || "left",
+            button: (input.button as string) || 'left',
             ...input,
           };
-        } else if (action === "type") {
+        } else if (action === 'type') {
           return {
-            type: "type",
+            type: 'type',
             text: input.text as string,
             ...input,
           };
-        } else if (action === "keypress") {
+        } else if (action === 'keypress') {
           return {
-            type: "keypress",
+            type: 'keypress',
             keys: input.keys as string[],
             ...input,
           };
-        } else if (action === "double_click" || action === "doubleClick") {
+        } else if (action === 'double_click' || action === 'doubleClick') {
           return {
             type: action,
             x: input.x as number,
             y: input.y as number,
             ...input,
           };
-        } else if (action === "scroll") {
+        } else if (action === 'scroll') {
           // Convert Anthropic's coordinate, scroll_amount and scroll_direction into scroll_x and scroll_y
-          const x =
-            (input.x as number) ||
-            (input.coordinate ? (input.coordinate as number[])[0] : 0);
-          const y =
-            (input.y as number) ||
-            (input.coordinate ? (input.coordinate as number[])[1] : 0);
+          const x = (input.x as number) || (input.coordinate ? (input.coordinate as number[])[0] : 0);
+          const y = (input.y as number) || (input.coordinate ? (input.coordinate as number[])[1] : 0);
 
           // Calculate scroll_x and scroll_y based on scroll_amount and scroll_direction
           let scroll_x = 0;
@@ -716,13 +698,13 @@ export class AnthropicCUAClient extends AgentClient {
 
           if (input.scroll_direction) {
             const direction = input.scroll_direction as string;
-            if (direction === "down") {
+            if (direction === 'down') {
               scroll_y = scrollAmount * scrollMultiplier;
-            } else if (direction === "up") {
+            } else if (direction === 'up') {
               scroll_y = -scrollAmount * scrollMultiplier;
-            } else if (direction === "right") {
+            } else if (direction === 'right') {
               scroll_x = scrollAmount * scrollMultiplier;
-            } else if (direction === "left") {
+            } else if (direction === 'left') {
               scroll_x = -scrollAmount * scrollMultiplier;
             }
           } else {
@@ -732,26 +714,26 @@ export class AnthropicCUAClient extends AgentClient {
           }
 
           return {
-            type: "scroll",
+            type: 'scroll',
             x: x,
             y: y,
             scroll_x: scroll_x,
             scroll_y: scroll_y,
             ...input,
           };
-        } else if (action === "move") {
+        } else if (action === 'move') {
           // Handle Anthropic's coordinate format
           const coordinates = input.coordinate as number[] | undefined;
           const x = coordinates ? coordinates[0] : (input.x as number) || 0;
           const y = coordinates ? coordinates[1] : (input.y as number) || 0;
 
           return {
-            type: "move",
+            type: 'move',
             x: x,
             y: y,
             ...input,
           };
-        } else if (action === "drag") {
+        } else if (action === 'drag') {
           // Make sure path is properly formatted
           const path =
             (input.path as { x: number; y: number }[]) ||
@@ -769,83 +751,56 @@ export class AnthropicCUAClient extends AgentClient {
               : []);
 
           return {
-            type: "drag",
+            type: 'drag',
             path: path,
             ...input,
           };
-        } else if (action === "wait") {
+        } else if (action === 'wait') {
           return {
-            type: "wait",
+            type: 'wait',
             ...input,
           };
-        } else if (action === "key") {
+        } else if (action === 'key') {
           const text = input.text as string;
           // Convert common key names to a format our handler can understand
           let mappedKey = text;
 
-          if (
-            text === "Return" ||
-            text === "return" ||
-            text === "Enter" ||
-            text === "enter"
-          ) {
-            mappedKey = "Enter";
-          } else if (text === "Tab" || text === "tab") {
-            mappedKey = "Tab";
-          } else if (
-            text === "Escape" ||
-            text === "escape" ||
-            text === "Esc" ||
-            text === "esc"
-          ) {
-            mappedKey = "Escape";
-          } else if (text === "Backspace" || text === "backspace") {
-            mappedKey = "Backspace";
-          } else if (
-            text === "Delete" ||
-            text === "delete" ||
-            text === "Del" ||
-            text === "del"
-          ) {
-            mappedKey = "Delete";
-          } else if (text === "ArrowUp" || text === "Up" || text === "up") {
-            mappedKey = "ArrowUp";
-          } else if (
-            text === "ArrowDown" ||
-            text === "Down" ||
-            text === "down"
-          ) {
-            mappedKey = "ArrowDown";
-          } else if (
-            text === "ArrowLeft" ||
-            text === "Left" ||
-            text === "left"
-          ) {
-            mappedKey = "ArrowLeft";
-          } else if (
-            text === "ArrowRight" ||
-            text === "Right" ||
-            text === "right"
-          ) {
-            mappedKey = "ArrowRight";
+          if (text === 'Return' || text === 'return' || text === 'Enter' || text === 'enter') {
+            mappedKey = 'Enter';
+          } else if (text === 'Tab' || text === 'tab') {
+            mappedKey = 'Tab';
+          } else if (text === 'Escape' || text === 'escape' || text === 'Esc' || text === 'esc') {
+            mappedKey = 'Escape';
+          } else if (text === 'Backspace' || text === 'backspace') {
+            mappedKey = 'Backspace';
+          } else if (text === 'Delete' || text === 'delete' || text === 'Del' || text === 'del') {
+            mappedKey = 'Delete';
+          } else if (text === 'ArrowUp' || text === 'Up' || text === 'up') {
+            mappedKey = 'ArrowUp';
+          } else if (text === 'ArrowDown' || text === 'Down' || text === 'down') {
+            mappedKey = 'ArrowDown';
+          } else if (text === 'ArrowLeft' || text === 'Left' || text === 'left') {
+            mappedKey = 'ArrowLeft';
+          } else if (text === 'ArrowRight' || text === 'Right' || text === 'right') {
+            mappedKey = 'ArrowRight';
           }
 
           return {
-            type: "key",
+            type: 'key',
             text: mappedKey,
             ...input,
           };
-        } else if (action === "left_click") {
+        } else if (action === 'left_click') {
           // Convert left_click to regular click
           const coordinates = input.coordinate as number[] | undefined;
           const x = coordinates ? coordinates[0] : (input.x as number) || 0;
           const y = coordinates ? coordinates[1] : (input.y as number) || 0;
 
           return {
-            type: "click",
+            type: 'click',
             x: x,
             y: y,
-            button: "left",
+            button: 'left',
             ...input,
           };
         } else {
@@ -856,7 +811,7 @@ export class AnthropicCUAClient extends AgentClient {
             ...input,
           };
         }
-      } else if (name === "str_replace_editor" || name === "bash") {
+      } else if (name === 'str_replace_editor' || name === 'bash') {
         // For editor or bash tools
         return {
           type: name,
@@ -867,15 +822,12 @@ export class AnthropicCUAClient extends AgentClient {
       console.warn(`Unknown tool name: ${name}`);
       return null;
     } catch (error) {
-      console.error("Error converting tool use to action:", error);
+      console.error('Error converting tool use to action:', error);
       return null;
     }
   }
 
-  async captureScreenshot(options?: {
-    base64Image?: string;
-    currentUrl?: string;
-  }): Promise<string> {
+  async captureScreenshot(options?: { base64Image?: string; currentUrl?: string }): Promise<string> {
     // Use provided options if available
     if (options?.base64Image) {
       return `data:image/png;base64,${options.base64Image}`;
@@ -887,14 +839,14 @@ export class AnthropicCUAClient extends AgentClient {
         const base64Image = await this.screenshotProvider();
         return `data:image/png;base64,${base64Image}`;
       } catch (error) {
-        console.error("Error capturing screenshot:", error);
+        console.error('Error capturing screenshot:', error);
         throw error;
       }
     }
 
     throw new AgentScreenshotProviderError(
-      "`screenshotProvider` has not been set. " +
-        "Please call `setScreenshotProvider()` with a valid function that returns a base64-encoded image",
+      '`screenshotProvider` has not been set. ' +
+        'Please call `setScreenshotProvider()` with a valid function that returns a base64-encoded image'
     );
   }
 }

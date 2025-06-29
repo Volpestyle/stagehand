@@ -1,9 +1,5 @@
-import { generateXPathsForElement as generateXPaths } from "./xpathUtils";
-import {
-  canElementScroll,
-  getNodeFromXpath,
-  waitForElementScrollEnd,
-} from "./utils";
+import { generateXPathsForElement as generateXPaths } from './xpathUtils';
+import { canElementScroll, getNodeFromXpath, waitForElementScrollEnd } from './utils';
 
 /**
  * Finds and returns a list of scrollable elements on the page,
@@ -23,13 +19,12 @@ export function getScrollableElements(topN?: number): HTMLElement[] {
 
   // 2) Scan all elements to find potential scrollable containers.
   //    A candidate must have a scrollable overflow style and extra scrollable content.
-  const allElements = document.querySelectorAll<HTMLElement>("*");
+  const allElements = document.querySelectorAll<HTMLElement>('*');
   for (const elem of allElements) {
     const style = window.getComputedStyle(elem);
     const overflowY = style.overflowY;
 
-    const isPotentiallyScrollable =
-      overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay";
+    const isPotentiallyScrollable = overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay';
 
     if (isPotentiallyScrollable) {
       const candidateScrollDiff = elem.scrollHeight - elem.clientHeight;
@@ -60,14 +55,12 @@ export function getScrollableElements(topN?: number): HTMLElement[] {
  * @param topN (optional) integer limit on how many scrollable elements to process
  * @returns string[] list of XPaths (1 for each scrollable element)
  */
-export async function getScrollableElementXpaths(
-  topN?: number,
-): Promise<string[]> {
+export async function getScrollableElementXpaths(topN?: number): Promise<string[]> {
   const scrollableElems = getScrollableElements(topN);
   const xpaths = [];
   for (const elem of scrollableElems) {
     const allXPaths = await generateXPaths(elem);
-    const firstXPath = allXPaths?.[0] || "";
+    const firstXPath = allXPaths?.[0] || '';
     xpaths.push(firstXPath);
   }
   return xpaths;

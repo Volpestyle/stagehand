@@ -1,19 +1,16 @@
-import { LogLine } from "@/types/log";
-import { AgentClient } from "./AgentClient";
-import { AgentType } from "@/types/agent";
-import { OpenAICUAClient } from "./OpenAICUAClient";
-import { AnthropicCUAClient } from "./AnthropicCUAClient";
-import {
-  UnsupportedModelError,
-  UnsupportedModelProviderError,
-} from "@/types/stagehandErrors";
+import { LogLine } from '@/types/log';
+import { AgentClient } from './AgentClient';
+import { AgentType } from '@/types/agent';
+import { OpenAICUAClient } from './OpenAICUAClient';
+import { AnthropicCUAClient } from './AnthropicCUAClient';
+import { UnsupportedModelError, UnsupportedModelProviderError } from '@/types/stagehandErrors';
 
 // Map model names to their provider types
 const modelToAgentProviderMap: Record<string, AgentType> = {
-  "computer-use-preview": "openai",
-  "computer-use-preview-2025-03-11": "openai",
-  "claude-3-7-sonnet-latest": "anthropic",
-  "claude-sonnet-4-20250514": "anthropic",
+  'computer-use-preview': 'openai',
+  'computer-use-preview-2025-03-11': 'openai',
+  'claude-3-7-sonnet-latest': 'anthropic',
+  'claude-sonnet-4-20250514': 'anthropic',
 };
 
 /**
@@ -34,42 +31,28 @@ export class AgentProvider {
   getClient(
     modelName: string,
     clientOptions?: Record<string, unknown>,
-    userProvidedInstructions?: string,
+    userProvidedInstructions?: string
   ): AgentClient {
     const type = AgentProvider.getAgentProvider(modelName);
     this.logger({
-      category: "agent",
+      category: 'agent',
       message: `Getting agent client for type: ${type}, model: ${modelName}`,
       level: 2,
     });
 
     try {
       switch (type) {
-        case "openai":
-          return new OpenAICUAClient(
-            type,
-            modelName,
-            userProvidedInstructions,
-            clientOptions,
-          );
-        case "anthropic":
-          return new AnthropicCUAClient(
-            type,
-            modelName,
-            userProvidedInstructions,
-            clientOptions,
-          );
+        case 'openai':
+          return new OpenAICUAClient(type, modelName, userProvidedInstructions, clientOptions);
+        case 'anthropic':
+          return new AnthropicCUAClient(type, modelName, userProvidedInstructions, clientOptions);
         default:
-          throw new UnsupportedModelProviderError(
-            ["openai", "anthropic"],
-            "Computer Use Agent",
-          );
+          throw new UnsupportedModelProviderError(['openai', 'anthropic'], 'Computer Use Agent');
       }
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger({
-        category: "agent",
+        category: 'agent',
         message: `Error creating agent client: ${errorMessage}`,
         level: 0,
       });
@@ -83,9 +66,6 @@ export class AgentProvider {
       return modelToAgentProviderMap[modelName];
     }
 
-    throw new UnsupportedModelError(
-      Object.keys(modelToAgentProviderMap),
-      "Computer Use Agent",
-    );
+    throw new UnsupportedModelError(Object.keys(modelToAgentProviderMap), 'Computer Use Agent');
   }
 }

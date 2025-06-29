@@ -7,23 +7,20 @@
  *
  * We can't rely on the normal build process for stagehand, because we need our script content as a string so that the import *just works*
  */
-import fs from "fs";
-import path from "path";
-import esbuild from "esbuild";
+import fs from 'fs';
+import path from 'path';
+import esbuild from 'esbuild';
 
-fs.mkdirSync(path.join(__dirname, "./build"), { recursive: true });
+fs.mkdirSync(path.join(__dirname, './build'), { recursive: true });
 
 esbuild.buildSync({
-  entryPoints: [path.join(__dirname, "index.ts")],
+  entryPoints: [path.join(__dirname, 'index.ts')],
   bundle: true,
-  outdir: path.join(__dirname, "build"),
+  outdir: path.join(__dirname, 'build'),
 });
 
-const scriptContent = fs.readFileSync(
-  path.join(__dirname, "./build/index.js"),
-  "utf8",
-);
+const scriptContent = fs.readFileSync(path.join(__dirname, './build/index.js'), 'utf8');
 
 const output = `export const scriptContent = ${JSON.stringify(scriptContent)};`;
 
-fs.writeFileSync(path.join(__dirname, "./build/scriptContent.ts"), output);
+fs.writeFileSync(path.join(__dirname, './build/scriptContent.ts'), output);

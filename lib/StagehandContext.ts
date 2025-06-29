@@ -1,11 +1,8 @@
-import type {
-  BrowserContext as PlaywrightContext,
-  Page as PlaywrightPage,
-} from "playwright";
-import { Stagehand } from "./index";
-import { StagehandPage } from "./StagehandPage";
-import { Page } from "../types/page";
-import { EnhancedContext } from "../types/context";
+import type { BrowserContext as PlaywrightContext, Page as PlaywrightPage } from 'playwright';
+import { Stagehand } from './index';
+import { StagehandPage } from './StagehandPage';
+import { Page } from '../types/page';
+import { EnhancedContext } from '../types/context';
 
 export class StagehandContext {
   private readonly stagehand: Stagehand;
@@ -20,7 +17,7 @@ export class StagehandContext {
     // Create proxy around the context
     this.intContext = new Proxy(context, {
       get: (target, prop) => {
-        if (prop === "newPage") {
+        if (prop === 'newPage') {
           return async (): Promise<Page> => {
             const pwPage = await target.newPage();
             const stagehandPage = await this.createStagehandPage(pwPage);
@@ -29,7 +26,7 @@ export class StagehandContext {
             return stagehandPage.page;
           };
         }
-        if (prop === "pages") {
+        if (prop === 'pages') {
           return (): Page[] => {
             const pwPages = target.pages();
             // Convert all pages to StagehandPages synchronously
@@ -44,7 +41,7 @@ export class StagehandContext {
                   this.stagehand.llmClient,
                   this.stagehand.userProvidedInstructions,
                   this.stagehand.apiClient,
-                  this.stagehand.waitForCaptchaSolves,
+                  this.stagehand.waitForCaptchaSolves
                 );
                 this.pageMap.set(pwPage, stagehandPage);
               }
@@ -57,9 +54,7 @@ export class StagehandContext {
     }) as unknown as EnhancedContext;
   }
 
-  private async createStagehandPage(
-    page: PlaywrightPage,
-  ): Promise<StagehandPage> {
+  private async createStagehandPage(page: PlaywrightPage): Promise<StagehandPage> {
     const stagehandPage = await new StagehandPage(
       page,
       this.stagehand,
@@ -67,16 +62,13 @@ export class StagehandContext {
       this.stagehand.llmClient,
       this.stagehand.userProvidedInstructions,
       this.stagehand.apiClient,
-      this.stagehand.waitForCaptchaSolves,
+      this.stagehand.waitForCaptchaSolves
     ).init();
     this.pageMap.set(page, stagehandPage);
     return stagehandPage;
   }
 
-  static async init(
-    context: PlaywrightContext,
-    stagehand: Stagehand,
-  ): Promise<StagehandContext> {
+  static async init(context: PlaywrightContext, stagehand: Stagehand): Promise<StagehandContext> {
     const instance = new StagehandContext(context, stagehand);
 
     // Initialize existing pages
@@ -108,15 +100,13 @@ export class StagehandContext {
 
   public async getStagehandPages(): Promise<StagehandPage[]> {
     const pwPages = this.intContext.pages();
-    return Promise.all(
-      pwPages.map((page: PlaywrightPage) => this.getStagehandPage(page)),
-    );
+    return Promise.all(pwPages.map((page: PlaywrightPage) => this.getStagehandPage(page)));
   }
 
   public setActivePage(page: StagehandPage): void {
     this.activeStagehandPage = page;
     // Update the stagehand's active page reference
-    this.stagehand["setActivePage"](page);
+    this.stagehand['setActivePage'](page);
   }
 
   public getActivePage(): StagehandPage | null {

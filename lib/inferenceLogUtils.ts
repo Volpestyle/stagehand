@@ -1,11 +1,11 @@
-import path from "path";
-import fs from "fs";
+import path from 'path';
+import fs from 'fs';
 
 /**
  * Create (or ensure) a parent directory named "inference_summary".
  */
 function ensureInferenceSummaryDir(): string {
-  const inferenceDir = path.join(process.cwd(), "inference_summary");
+  const inferenceDir = path.join(process.cwd(), 'inference_summary');
   if (!fs.existsSync(inferenceDir)) {
     fs.mkdirSync(inferenceDir, { recursive: true });
   }
@@ -29,8 +29,8 @@ export function appendSummary<T>(inferenceType: string, entry: T) {
 function getTimestamp(): string {
   return new Date()
     .toISOString()
-    .replace(/[^0-9T]/g, "")
-    .replace("T", "_");
+    .replace(/[^0-9T]/g, '')
+    .replace('T', '_');
 }
 
 /**
@@ -40,7 +40,7 @@ function getTimestamp(): string {
 export function writeTimestampedTxtFile(
   directory: string,
   prefix: string,
-  data: unknown,
+  data: unknown
 ): { fileName: string; timestamp: string } {
   const baseDir = ensureInferenceSummaryDir();
 
@@ -53,10 +53,7 @@ export function writeTimestampedTxtFile(
   const fileName = `${timestamp}_${prefix}.txt`;
   const filePath = path.join(subDir, fileName);
 
-  fs.writeFileSync(
-    filePath,
-    JSON.stringify(data, null, 2).replace(/\\n/g, "\n"),
-  );
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2).replace(/\\n/g, '\n'));
 
   return { fileName, timestamp };
 }
@@ -98,13 +95,9 @@ function readSummaryFile<T>(inferenceType: string): Record<string, T[]> {
   }
 
   try {
-    const raw = fs.readFileSync(summaryPath, "utf8");
+    const raw = fs.readFileSync(summaryPath, 'utf8');
     const parsed = JSON.parse(raw);
-    if (
-      parsed &&
-      typeof parsed === "object" &&
-      Array.isArray(parsed[arrayKey])
-    ) {
+    if (parsed && typeof parsed === 'object' && Array.isArray(parsed[arrayKey])) {
       return parsed;
     }
   } catch {

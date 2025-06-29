@@ -1,26 +1,14 @@
-import { Locator } from "playwright";
-import { LogLine } from "../../types/log";
-import {
-  PlaywrightCommandException,
-  PlaywrightCommandMethodNotSupportedException,
-} from "../../types/playwright";
-import { LLMClient } from "../llm/LLMClient";
-import { StagehandPage } from "../StagehandPage";
-import {
-  ActResult,
-  ObserveResult,
-  ActOptions,
-  ObserveOptions,
-} from "@/types/stagehand";
-import { MethodHandlerContext, SupportedPlaywrightAction } from "@/types/act";
-import { buildActObservePrompt } from "../prompt";
-import {
-  methodHandlerMap,
-  fallbackLocatorMethod,
-  deepLocator,
-} from "./handlerUtils/actHandlerUtils";
-import { StagehandObserveHandler } from "@/lib/handlers/observeHandler";
-import { StagehandInvalidArgumentError } from "@/types/stagehandErrors";
+import { Locator } from 'playwright';
+import { LogLine } from '../../types/log';
+import { PlaywrightCommandException, PlaywrightCommandMethodNotSupportedException } from '../../types/playwright';
+import { LLMClient } from '../llm/LLMClient';
+import { StagehandPage } from '../StagehandPage';
+import { ActResult, ObserveResult, ActOptions, ObserveOptions } from '@/types/stagehand';
+import { MethodHandlerContext, SupportedPlaywrightAction } from '@/types/act';
+import { buildActObservePrompt } from '../prompt';
+import { methodHandlerMap, fallbackLocatorMethod, deepLocator } from './handlerUtils/actHandlerUtils';
+import { StagehandObserveHandler } from '@/lib/handlers/observeHandler';
+import { StagehandInvalidArgumentError } from '@/types/stagehandErrors';
 /**
  * NOTE: Vision support has been removed from this version of Stagehand.
  * If useVision or verifierUseVision is set to true, a warning is logged and
@@ -49,37 +37,33 @@ export class StagehandActHandler {
    * Perform an immediate Playwright action based on an ObserveResult object
    * that was returned from `page.observe(...)`.
    */
-  public async actFromObserveResult(
-    observe: ObserveResult,
-    domSettleTimeoutMs?: number,
-  ): Promise<ActResult> {
+  public async actFromObserveResult(observe: ObserveResult, domSettleTimeoutMs?: number): Promise<ActResult> {
     this.logger({
-      category: "action",
-      message: "Performing act from an ObserveResult",
+      category: 'action',
+      message: 'Performing act from an ObserveResult',
       level: 1,
       auxiliary: {
         observeResult: {
           value: JSON.stringify(observe),
-          type: "object",
+          type: 'object',
         },
       },
     });
 
     const method = observe.method;
-    if (method === "not-supported") {
+    if (method === 'not-supported') {
       this.logger({
-        category: "action",
-        message: "Cannot execute ObserveResult with unsupported method",
+        category: 'action',
+        message: 'Cannot execute ObserveResult with unsupported method',
         level: 1,
         auxiliary: {
           error: {
-            value:
-              "NotSupportedError: The method requested in this ObserveResult is not supported by Stagehand.",
-            type: "string",
+            value: 'NotSupportedError: The method requested in this ObserveResult is not supported by Stagehand.',
+            type: 'string',
           },
           trace: {
             value: `Cannot execute act from ObserveResult with unsupported method: ${method}`,
-            type: "string",
+            type: 'string',
           },
         },
       });
@@ -91,15 +75,10 @@ export class StagehandActHandler {
     }
     const args = observe.arguments ?? [];
     // remove the xpath prefix on the selector
-    const selector = observe.selector.replace("xpath=", "");
+    const selector = observe.selector.replace('xpath=', '');
 
     try {
-      await this._performPlaywrightMethod(
-        method,
-        args,
-        selector,
-        domSettleTimeoutMs,
-      );
+      await this._performPlaywrightMethod(method, args, selector, domSettleTimeoutMs);
 
       return {
         success: true,
@@ -107,17 +86,14 @@ export class StagehandActHandler {
         action: observe.description || `ObserveResult action (${method})`,
       };
     } catch (err) {
-      if (
-        !this.selfHeal ||
-        err instanceof PlaywrightCommandMethodNotSupportedException
-      ) {
+      if (!this.selfHeal || err instanceof PlaywrightCommandMethodNotSupportedException) {
         this.logger({
-          category: "action",
-          message: "Error performing act from an ObserveResult",
+          category: 'action',
+          message: 'Error performing act from an ObserveResult',
           level: 1,
           auxiliary: {
-            error: { value: err.message, type: "string" },
-            trace: { value: err.stack, type: "string" },
+            error: { value: err.message, type: 'string' },
+            trace: { value: err.stack, type: 'string' },
           },
         });
         return {
@@ -128,21 +104,18 @@ export class StagehandActHandler {
       }
       // We will try to use observeAct on a failed ObserveResult-act if selfHeal is true
       this.logger({
-        category: "action",
-        message:
-          "Error performing act from an ObserveResult. Reprocessing the page and trying again",
+        category: 'action',
+        message: 'Error performing act from an ObserveResult. Reprocessing the page and trying again',
         level: 1,
         auxiliary: {
-          error: { value: err.message, type: "string" },
-          trace: { value: err.stack, type: "string" },
-          observeResult: { value: JSON.stringify(observe), type: "object" },
+          error: { value: err.message, type: 'string' },
+          trace: { value: err.stack, type: 'string' },
+          observeResult: { value: JSON.stringify(observe), type: 'object' },
         },
       });
       try {
         // Remove redundancy from method-description
-        const actCommand = observe.description
-          .toLowerCase()
-          .startsWith(method.toLowerCase())
+        const actCommand = observe.description.toLowerCase().startsWith(method.toLowerCase())
           ? observe.description
           : method
             ? `${method} ${observe.description}`
@@ -153,12 +126,12 @@ export class StagehandActHandler {
         });
       } catch (err) {
         this.logger({
-          category: "action",
-          message: "Error performing act from an ObserveResult on fallback",
+          category: 'action',
+          message: 'Error performing act from an ObserveResult on fallback',
           level: 1,
           auxiliary: {
-            error: { value: err.message, type: "string" },
-            trace: { value: err.stack, type: "string" },
+            error: { value: err.message, type: 'string' },
+            trace: { value: err.stack, type: 'string' },
           },
         });
         return {
@@ -178,38 +151,29 @@ export class StagehandActHandler {
     actionOrOptions: ActOptions,
     observeHandler: StagehandObserveHandler,
     llmClient: LLMClient,
-    requestId: string,
+    requestId: string
   ): Promise<ActResult> {
     // Extract the action string
     let action: string;
     const observeOptions: Partial<ObserveOptions> = {};
 
-    if (typeof actionOrOptions === "object" && actionOrOptions !== null) {
-      if (!("action" in actionOrOptions)) {
-        throw new StagehandInvalidArgumentError(
-          "Invalid argument. Action options must have an `action` field.",
-        );
+    if (typeof actionOrOptions === 'object' && actionOrOptions !== null) {
+      if (!('action' in actionOrOptions)) {
+        throw new StagehandInvalidArgumentError('Invalid argument. Action options must have an `action` field.');
       }
 
-      if (
-        typeof actionOrOptions.action !== "string" ||
-        actionOrOptions.action.length === 0
-      ) {
-        throw new StagehandInvalidArgumentError(
-          "Invalid argument. No action provided.",
-        );
+      if (typeof actionOrOptions.action !== 'string' || actionOrOptions.action.length === 0) {
+        throw new StagehandInvalidArgumentError('Invalid argument. No action provided.');
       }
 
       action = actionOrOptions.action;
 
       // Extract options that should be passed to observe
-      if (actionOrOptions.modelName)
-        observeOptions.modelName = actionOrOptions.modelName;
-      if (actionOrOptions.modelClientOptions)
-        observeOptions.modelClientOptions = actionOrOptions.modelClientOptions;
+      if (actionOrOptions.modelName) observeOptions.modelName = actionOrOptions.modelName;
+      if (actionOrOptions.modelClientOptions) observeOptions.modelClientOptions = actionOrOptions.modelClientOptions;
     } else {
       throw new StagehandInvalidArgumentError(
-        "Invalid argument. Valid arguments are: a string, an ActOptions object with an `action` field not empty, or an ObserveResult with a `selector` and `method` field.",
+        'Invalid argument. Valid arguments are: a string, an ActOptions object with an `action` field not empty, or an ObserveResult with a `selector` and `method` field.'
       );
     }
 
@@ -220,7 +184,7 @@ export class StagehandActHandler {
       const instruction = buildActObservePrompt(
         action,
         Object.values(SupportedPlaywrightAction),
-        actionOrOptions.variables,
+        actionOrOptions.variables
       );
 
       const observeResponse = await observeHandler.observe({
@@ -235,13 +199,9 @@ export class StagehandActHandler {
 
       // Extract usage data and elements from the new response format
       // Handle both new format {elements, usage} and old format (array)
-      const observeResults = Array.isArray(observeResponse)
-        ? observeResponse
-        : observeResponse.elements;
+      const observeResults = Array.isArray(observeResponse) ? observeResponse : observeResponse.elements;
       const observeUsage =
-        observeResponse &&
-        !Array.isArray(observeResponse) &&
-        observeResponse.usage
+        observeResponse && !Array.isArray(observeResponse) && observeResponse.usage
           ? observeResponse.usage
           : {
               prompt_tokens: 0,
@@ -261,8 +221,7 @@ export class StagehandActHandler {
 
       // Filter out non-actionable elements (like iframes with "not-supported" method)
       const actionableResults = observeResults.filter(
-        (element) =>
-          !("method" in element) || element.method !== "not-supported",
+        (element) => !('method' in element) || element.method !== 'not-supported'
       );
 
       if (actionableResults.length === 0) {
@@ -277,7 +236,7 @@ export class StagehandActHandler {
       // Execute multiple actions in sequence if returned by the LLM
       let lastResult: ActResult = {
         success: true,
-        message: "",
+        message: '',
         action,
       };
 
@@ -287,15 +246,12 @@ export class StagehandActHandler {
         if (actionOrOptions.variables) {
           Object.keys(actionOrOptions.variables).forEach((key) => {
             element.arguments = element.arguments.map((arg) =>
-              arg.replace(`%${key}%`, actionOrOptions.variables![key]),
+              arg.replace(`%${key}%`, actionOrOptions.variables![key])
             );
           });
         }
 
-        const result = await this.actFromObserveResult(
-          element,
-          actionOrOptions.domSettleTimeoutMs,
-        );
+        const result = await this.actFromObserveResult(element, actionOrOptions.domSettleTimeoutMs);
 
         // If any action fails, stop and return the failure
         if (!result.success) {
@@ -321,7 +277,7 @@ export class StagehandActHandler {
         message:
           actionableResults.length === 1
             ? lastResult.message
-            : `Successfully completed ${actionableResults.length} actions: ${actionableResults.map((r) => ("method" in r ? r.method : "action")).join(" → ")}`,
+            : `Successfully completed ${actionableResults.length} actions: ${actionableResults.map((r) => ('method' in r ? r.method : 'action')).join(' → ')}`,
         action,
         usage: observeUsage,
       };
@@ -355,22 +311,17 @@ export class StagehandActHandler {
     ]);
   }
 
-  private async _performPlaywrightMethod(
-    method: string,
-    args: unknown[],
-    xpath: string,
-    domSettleTimeoutMs?: number,
-  ) {
+  private async _performPlaywrightMethod(method: string, args: unknown[], xpath: string, domSettleTimeoutMs?: number) {
     const locator = deepLocator(this.stagehandPage.page, xpath).first();
     const initialUrl = this.stagehandPage.page.url();
 
     this.logger({
-      category: "action",
-      message: "performing playwright method",
+      category: 'action',
+      message: 'performing playwright method',
       level: 2,
       auxiliary: {
-        xpath: { value: xpath, type: "string" },
-        method: { value: method, type: "string" },
+        xpath: { value: xpath, type: 'string' },
+        method: { value: method, type: 'string' },
       },
     });
 
@@ -394,37 +345,35 @@ export class StagehandActHandler {
         await methodFn(context);
 
         // 3) Otherwise, see if it's a valid locator method
-      } else if (typeof locator[method as keyof Locator] === "function") {
+      } else if (typeof locator[method as keyof Locator] === 'function') {
         await fallbackLocatorMethod(context);
 
         // 4) If still unknown, we can’t handle it
       } else {
         this.logger({
-          category: "action",
-          message: "chosen method is invalid",
+          category: 'action',
+          message: 'chosen method is invalid',
           level: 1,
           auxiliary: {
-            method: { value: method, type: "string" },
+            method: { value: method, type: 'string' },
           },
         });
-        throw new PlaywrightCommandMethodNotSupportedException(
-          `Method ${method} not supported`,
-        );
+        throw new PlaywrightCommandMethodNotSupportedException(`Method ${method} not supported`);
       }
 
       // Always wait for DOM to settle
       await this.stagehandPage._waitForSettledDom(domSettleTimeoutMs);
     } catch (e) {
       this.logger({
-        category: "action",
-        message: "error performing method",
+        category: 'action',
+        message: 'error performing method',
         level: 1,
         auxiliary: {
-          error: { value: e.message, type: "string" },
-          trace: { value: e.stack, type: "string" },
-          method: { value: method, type: "string" },
-          xpath: { value: xpath, type: "string" },
-          args: { value: JSON.stringify(args), type: "object" },
+          error: { value: e.message, type: 'string' },
+          trace: { value: e.stack, type: 'string' },
+          method: { value: method, type: 'string' },
+          xpath: { value: xpath, type: 'string' },
+          args: { value: JSON.stringify(args), type: 'object' },
         },
       });
       throw new PlaywrightCommandException(e.message);

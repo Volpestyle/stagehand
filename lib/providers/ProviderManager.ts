@@ -1,5 +1,5 @@
-import { IBrowserProvider } from "../../types/provider";
-import { LogLine } from "../../types/log";
+import { IBrowserProvider } from '../../types/provider';
+import { LogLine } from '../../types/log';
 
 /**
  * Registry for external browser providers
@@ -39,7 +39,7 @@ export class ProviderManager {
     if (provider && provider.cleanup) {
       provider.cleanup().catch((err) => {
         ProviderManager.defaultLogger({
-          category: "provider-manager",
+          category: 'provider-manager',
           message: `Error during provider cleanup: ${err.message}`,
           level: 0,
         });
@@ -67,11 +67,11 @@ export class ProviderManager {
         cleanupPromises.push(
           provider.cleanup().catch((err) => {
             ProviderManager.defaultLogger({
-              category: "provider-manager",
+              category: 'provider-manager',
               message: `Error during provider cleanup: ${err.message}`,
               level: 0,
             });
-          }),
+          })
         );
       }
     }

@@ -2,16 +2,9 @@ import type {
   Browser as PlaywrightBrowser,
   BrowserContext as PlaywrightContext,
   Page as PlaywrightPage,
-} from "playwright";
-import { z } from "zod";
-import type {
-  ActOptions,
-  ActResult,
-  ExtractOptions,
-  ExtractResult,
-  ObserveOptions,
-  ObserveResult,
-} from "./stagehand";
+} from 'playwright';
+import { z } from 'zod';
+import type { ActOptions, ActResult, ExtractOptions, ExtractResult, ObserveOptions, ObserveResult } from './stagehand';
 
 export const defaultExtractSchema = z.object({
   extraction: z.string(),
@@ -21,17 +14,13 @@ export const pageTextSchema = z.object({
   page_text: z.string(),
 });
 
-export interface Page extends Omit<PlaywrightPage, "on"> {
+export interface Page extends Omit<PlaywrightPage, 'on'> {
   act(action: string): Promise<ActResult>;
   act(options: ActOptions): Promise<ActResult>;
   act(observation: ObserveResult): Promise<ActResult>;
 
-  extract(
-    instruction: string,
-  ): Promise<ExtractResult<typeof defaultExtractSchema>>;
-  extract<T extends z.AnyZodObject>(
-    options: ExtractOptions<T>,
-  ): Promise<ExtractResult<T>>;
+  extract(instruction: string): Promise<ExtractResult<typeof defaultExtractSchema>>;
+  extract<T extends z.AnyZodObject>(options: ExtractOptions<T>): Promise<ExtractResult<T>>;
   extract(): Promise<ExtractResult<typeof pageTextSchema>>;
 
   observe(): Promise<ObserveResult[]>;
@@ -39,8 +28,8 @@ export interface Page extends Omit<PlaywrightPage, "on"> {
   observe(options?: ObserveOptions): Promise<ObserveResult[]>;
 
   on: {
-    (event: "popup", listener: (page: Page) => unknown): Page;
-  } & PlaywrightPage["on"];
+    (event: 'popup', listener: (page: Page) => unknown): Page;
+  } & PlaywrightPage['on'];
 }
 
 // Empty type for now, but will be used in the future

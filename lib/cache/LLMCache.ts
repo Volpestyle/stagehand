@@ -1,16 +1,12 @@
-import { BaseCache, CacheEntry } from "./BaseCache";
+import { BaseCache, CacheEntry } from './BaseCache';
 
 export class LLMCache extends BaseCache<CacheEntry> {
   constructor(
-    logger: (message: {
-      category?: string;
-      message: string;
-      level?: number;
-    }) => void,
+    logger: (message: { category?: string; message: string; level?: number }) => void,
     cacheDir?: string,
-    cacheFile?: string,
+    cacheFile?: string
   ) {
-    super(logger, cacheDir, cacheFile || "llm_calls.json");
+    super(logger, cacheDir, cacheFile || 'llm_calls.json');
   }
 
   /**
@@ -19,10 +15,7 @@ export class LLMCache extends BaseCache<CacheEntry> {
    * @param requestId - The identifier for the current request.
    * @returns The cached data if available, otherwise null.
    */
-  public async get<T>(
-    options: Record<string, unknown>,
-    requestId: string,
-  ): Promise<T | null> {
+  public async get<T>(options: Record<string, unknown>, requestId: string): Promise<T | null> {
     const data = await super.get(options, requestId);
     return data as T | null; // TODO: remove this cast
   }
@@ -33,15 +26,11 @@ export class LLMCache extends BaseCache<CacheEntry> {
    * @param data - The data to be cached.
    * @param requestId - The identifier for the current request.
    */
-  public async set(
-    options: Record<string, unknown>,
-    data: unknown,
-    requestId: string,
-  ): Promise<void> {
+  public async set(options: Record<string, unknown>, data: unknown, requestId: string): Promise<void> {
     await super.set(options, data, requestId);
     this.logger({
-      category: "llm_cache",
-      message: "Cache miss - saved new response",
+      category: 'llm_cache',
+      message: 'Cache miss - saved new response',
       level: 1,
     });
   }
