@@ -14,7 +14,9 @@
       "@/*": ["./*"]
     },
     "skipLibCheck": true,
-    "declaration": true
+    "declaration": true,
+    "composite": true
   },
+  "include": ["lib/**/*", "types/**/*", "scripts/**/*"],
   "exclude": ["node_modules", "dist", ".eslintrc.cjs"]
 }

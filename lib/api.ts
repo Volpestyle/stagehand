@@ -55,18 +55,12 @@ export class StagehandAPI {
     selfHeal,
     waitForCaptchaSolves,
     actionTimeoutMs,
-    browserbaseSessionCreateParams,
-    browserbaseSessionID,
   }: StartSessionParams): Promise<StartSessionResult> {
     if (!modelApiKey) {
       throw new StagehandAPIError('modelApiKey is required');
     }
     this.modelApiKey = modelApiKey;
 
-    const region = browserbaseSessionCreateParams?.region;
-    if (region && region !== 'us-west-2') {
-      return { sessionId: browserbaseSessionID ?? null, available: false };
-    }
     const sessionResponse = await this.request('/sessions/start', {
       method: 'POST',
       body: JSON.stringify({
@@ -78,8 +72,6 @@ export class StagehandAPI {
         selfHeal,
         waitForCaptchaSolves,
         actionTimeoutMs,
-        browserbaseSessionCreateParams,
-        browserbaseSessionID,
       }),
     });
 
@@ -99,11 +91,6 @@ export class StagehandAPI {
     }
 
     this.sessionId = sessionResponseBody.data.sessionId;
-
-    // Temporary reroute for rollout
-    if (!sessionResponseBody.data?.available && browserbaseSessionID) {
-      sessionResponseBody.data.sessionId = browserbaseSessionID;
-    }
 
     return sessionResponseBody.data;
   }

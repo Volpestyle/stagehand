@@ -1,6 +1,5 @@
 import { BrowserResult } from '../types/browser';
 import { LogLine } from '../types/log';
-import { LocalBrowserLaunchOptions } from '../types/stagehand';
 import { IBrowserProvider } from '../types/provider';
 
 interface GetBrowserParams {
@@ -8,14 +7,6 @@ interface GetBrowserParams {
   sessionId?: string;
   headless?: boolean;
   logger: (message: LogLine) => void;
-
-  // Backwards compatibility options (unused but kept for compatibility)
-  apiKey?: string;
-  projectId?: string;
-  env?: 'LOCAL' | 'BROWSERBASE';
-  browserbaseSessionCreateParams?: Record<string, unknown>;
-  browserbaseSessionID?: string;
-  localBrowserLaunchOptions?: LocalBrowserLaunchOptions;
 }
 
 /**
@@ -28,9 +19,6 @@ export async function getBrowserWithProvider(params: GetBrowserParams): Promise<
     sessionId,
     // headless = false, // unused for now
     logger,
-    // Backwards compatibility
-    browserbaseSessionCreateParams,
-    browserbaseSessionID,
   } = params;
 
   logger({
@@ -44,19 +32,17 @@ export async function getBrowserWithProvider(params: GetBrowserParams): Promise<
 
   try {
     let session;
-    const targetSessionId = sessionId || browserbaseSessionID;
-
-    if (targetSessionId) {
+    if (sessionId) {
       // Resume existing session
       logger({
         category: 'browser-connection',
         message: 'resuming existing session',
         level: 1,
         auxiliary: {
-          sessionId: { value: targetSessionId, type: 'string' },
+          sessionId: { value: sessionId, type: 'string' },
         },
       });
-      session = await browserProvider.resumeSession(targetSessionId);
+      session = await browserProvider.resumeSession(sessionId);
     } else {
       // Create new session
       logger({
@@ -65,9 +51,7 @@ export async function getBrowserWithProvider(params: GetBrowserParams): Promise<
         level: 1,
       });
 
-      const sessionParams = {
-        userMetadata: browserbaseSessionCreateParams,
-      };
+      const sessionParams = {};
       session = await browserProvider.createSession(sessionParams);
     }
 
@@ -91,8 +75,6 @@ export async function getBrowserWithProvider(params: GetBrowserParams): Promise<
       sessionUrl: session.sessionUrl,
       contextPath: connectionResult.contextPath,
       sessionId: session.sessionId,
-      // Backwards compatibility
-      env: browserProvider.type === 'local' ? 'LOCAL' : 'BROWSERBASE',
     };
 
     logger({

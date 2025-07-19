@@ -225,16 +225,6 @@ export class AnthropicCUAClient extends AgentClient {
 
       // Process content blocks to find tool use items and text content
       for (const block of content) {
-        // Log the block for debugging
-        console.log('Processing block:', JSON.stringify(block, null, 2));
-
-        // Enhanced logging for debugging
-        logger({
-          category: 'agent',
-          message: `Processing block type: ${block.type}, id: ${block.id || 'unknown'}`,
-          level: 2,
-        });
-
         if (block.type === 'tool_use') {
           // Direct handling of tool_use type
           logger({

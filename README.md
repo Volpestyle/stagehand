@@ -85,24 +85,24 @@ Here's how to build a sample browser automation with Stagehand:
 ```typescript
 // Use Playwright functions on the page object
 const page = stagehand.page;
-await page.goto("https://github.com/browserbase");
+await page.goto('https://github.com/browserbase');
 
 // Use act() to execute individual actions
-await page.act("click on the stagehand repo");
+await page.act('click on the stagehand repo');
 
 // Use Computer Use agents for larger actions
 const agent = stagehand.agent({
-    provider: "openai",
-    model: "computer-use-preview",
+  provider: 'openai',
+  model: 'computer-use-preview',
 });
-await agent.execute("Get to the latest PR");
+await agent.execute('Get to the latest PR');
 
 // Use extract() to read data from the page
 const { author, title } = await page.extract({
-  instruction: "extract the author and title of the PR",
+  instruction: 'extract the author and title of the PR',
   schema: z.object({
-    author: z.string().describe("The username of the PR author"),
-    title: z.string().describe("The title of the PR"),
+    author: z.string().describe('The username of the PR author'),
+    title: z.string().describe('The title of the PR'),
   }),
 });
 ```
@@ -161,6 +161,7 @@ For more information, please see our [Contributing Guide](https://docs.stagehand
 This project heavily relies on [Playwright](https://playwright.dev/) as a resilient backbone to automate the web. It also would not be possible without the awesome techniques and discoveries made by [tarsier](https://github.com/reworkd/tarsier), [gemini-zod](https://github.com/jbeoris/gemini-zod), and [fuji-web](https://github.com/normal-computing/fuji-web).
 
 We'd like to thank the following people for their major contributions to Stagehand:
+
 - [Paul Klein](https://github.com/pkiv)
 - [Anirudh Kamath](https://github.com/kamath)
 - [Sean McGuire](https://github.com/seanmcguire12)

@@ -1,5 +1,6 @@
 import { Browser } from '@playwright/test';
 import { LogLine } from './log';
+import { ScreencastOptions, InputEvent } from '@wallcrawler/infra-common';
 
 /**
  * Supported provider types for browser automation
@@ -143,4 +144,25 @@ export interface IBrowserProvider {
    * Clean up provider resources
    */
   cleanup?(): Promise<void>;
+
+  // Optional screencast capabilities
+  /**
+   * Start browser screencast for a session (optional)
+   */
+  startScreencast?(sessionId: string, options?: ScreencastOptions): Promise<void>;
+
+  /**
+   * Stop browser screencast for a session (optional)
+   */
+  stopScreencast?(sessionId: string): Promise<void>;
+
+  /**
+   * Send user input to remote browser (optional)
+   */
+  sendInput?(sessionId: string, inputEvent: InputEvent): Promise<void>;
+
+  /**
+   * Add event listener for screencast events (optional)
+   */
+  on?(event: string, listener: (...args: unknown[]) => void): void;
 }

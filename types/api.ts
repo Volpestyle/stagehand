@@ -23,14 +23,6 @@ export interface StartSessionParams {
   waitForCaptchaSolves?: boolean;
   actionTimeoutMs?: number;
   sessionId?: string;
-  /**
-   * @deprecated Use sessionId and provider configuration instead
-   */
-  browserbaseSessionCreateParams?: Record<string, unknown>;
-  /**
-   * @deprecated Use sessionId instead
-   */
-  browserbaseSessionID?: string;
 }
 
 export interface StartSessionResult {

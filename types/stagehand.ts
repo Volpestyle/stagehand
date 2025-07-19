@@ -13,21 +13,6 @@ export interface ConstructorParams {
    */
   provider?: IBrowserProvider;
   /**
-   * @deprecated Use providerConfig instead
-   * Your API key (for backwards compatibility)
-   */
-  apiKey?: string;
-  /**
-   * @deprecated Use providerConfig instead
-   * Your project ID (for backwards compatibility)
-   */
-  projectId?: string;
-  /**
-   * @deprecated Use provider instead
-   * The environment to use for Stagehand
-   */
-  env?: 'LOCAL' | 'BROWSERBASE';
-  /**
    * The verbosity of the Stagehand logger
    * 0 - No logs
    * 1 - Only errors
@@ -58,16 +43,6 @@ export interface ConstructorParams {
    */
   sessionId?: string;
   /**
-   * @deprecated Use providerConfig instead
-   * The parameters to use for creating a session (for backwards compatibility)
-   */
-  browserbaseSessionCreateParams?: Record<string, unknown>;
-  /**
-   * @deprecated Use sessionId instead
-   * The ID of a session to resume (for backwards compatibility)
-   */
-  browserbaseSessionID?: string;
-  /**
    * The model to use for Stagehand
    */
   modelName?: AvailableModel;
@@ -85,20 +60,11 @@ export interface ConstructorParams {
    */
   systemPrompt?: string;
   /**
-   * Offload Stagehand method calls to the Stagehand API.
-   * Must have a valid API key to use
-   */
-  useAPI?: boolean;
-  /**
    * Wait for captchas to be solved after navigation when using cloud providers.
    *
    * @default false
    */
   waitForCaptchaSolves?: boolean;
-  /**
-   * The parameters to use for launching a local browser
-   */
-  localBrowserLaunchOptions?: LocalBrowserLaunchOptions;
   /**
    * Log the inference to a file
    */
@@ -214,7 +180,7 @@ export interface LocalBrowserLaunchOptions {
     mode?: 'full' | 'minimal';
     urlFilter?: string | RegExp;
   };
-  recordVideo?: { dir: string; size?: { width: number; height: number } };
+
   viewport?: { width: number; height: number };
   deviceScaleFactor?: number;
   timezoneId?: string;

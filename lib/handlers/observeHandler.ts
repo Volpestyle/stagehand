@@ -35,7 +35,6 @@ export class StagehandObserveHandler {
     llmClient,
     requestId,
     returnAction,
-    onlyVisible,
     drawOverlay,
     fromAct,
     iframes,
@@ -68,15 +67,6 @@ export class StagehandObserveHandler {
         },
       },
     });
-
-    if (onlyVisible !== undefined) {
-      this.logger({
-        category: 'observation',
-        message:
-          'Warning: the `onlyVisible` parameter has no effect in this version of Stagehand and will be removed in future versions.',
-        level: 1,
-      });
-    }
 
     await this.stagehandPage._waitForSettledDom();
     this.logger({

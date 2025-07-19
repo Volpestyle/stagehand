@@ -9,7 +9,6 @@ import { Page } from '../types/page';
 import {
   ConstructorParams,
   InitResult,
-  LocalBrowserLaunchOptions,
   AgentConfig,
   StagehandMetrics,
   StagehandFunctionName,
@@ -33,11 +32,20 @@ import { StagehandOperatorHandler } from './handlers/operatorHandler';
 import { StagehandLogger } from './logger';
 import { getBrowserWithProvider } from './browserConnection';
 import { ProviderType, IBrowserProvider, Artifact, ArtifactList } from './providers';
+import { ScreencastOptions, InputEvent, ScreencastFrame } from '@wallcrawler/infra-common';
+
+// Type guard to check if provider supports screencast
+function hasScreencastCapabilities(provider: IBrowserProvider): boolean {
+  return (
+    typeof provider.startScreencast === 'function' &&
+    typeof provider.stopScreencast === 'function' &&
+    typeof provider.sendInput === 'function'
+  );
+}
 
 import {
   StagehandError,
   StagehandNotInitializedError,
-  UnsupportedModelError,
   UnsupportedAISDKModelProviderError,
   InvalidAISDKModelFormatError,
   StagehandInitError,
@@ -64,25 +72,6 @@ const defaultLogger = async (logLine: LogLine, disablePino?: boolean) => {
   }
   globalLogger.log(logLine);
 };
-
-/**
- * Legacy getBrowser function for backwards compatibility
- * @deprecated Use getBrowserWithProvider instead
- */
-async function _getBrowser(
-  _apiKey: string | undefined,
-  _projectId: string | undefined,
-  _env: 'LOCAL' | 'BROWSERBASE' = 'LOCAL',
-  _headless: boolean = false,
-  _logger: (message: LogLine) => void,
-  _browserbaseSessionCreateParams?: Record<string, unknown>,
-  _browserbaseSessionID?: string,
-  _localBrowserLaunchOptions?: LocalBrowserLaunchOptions
-): Promise<BrowserResult> {
-  throw new StagehandError(
-    'Legacy getBrowser function is no longer supported. Please use the provider-based approach with getBrowserWithProvider().'
-  );
-}
 
 export class Stagehand {
   private stagehandPage!: StagehandPage;
@@ -121,31 +110,6 @@ export class Stagehand {
   public readonly experimental: boolean;
   private externalLogger?: (logLine: LogLine) => void;
 
-  // Backwards compatibility - deprecated
-  /**
-   * @deprecated Use sessionId instead
-   */
-  public browserbaseSessionID?: string;
-  /**
-   * @deprecated Use providerType instead
-   */
-  private _env: 'LOCAL' | 'BROWSERBASE';
-  /**
-   * @deprecated Use providerConfig instead
-   */
-  protected apiKey: string | undefined;
-  /**
-   * @deprecated Use providerConfig instead
-   */
-  private projectId: string | undefined;
-  /**
-   * @deprecated Use providerConfig instead
-   */
-  private browserbaseSessionCreateParams?: Record<string, unknown>;
-  /**
-   * @deprecated Use providerConfig instead
-   */
-  private localBrowserLaunchOptions?: LocalBrowserLaunchOptions;
   public get history(): ReadonlyArray<HistoryEntry> {
     return Object.freeze([...this._history]);
   }
@@ -238,19 +202,11 @@ export class Stagehand {
     modelName,
     modelClientOptions,
     systemPrompt,
-    useAPI = true,
     waitForCaptchaSolves = false,
     logInferenceToFile = false,
     selfHeal = false,
     disablePino,
     experimental = false,
-    // Backwards compatibility
-    env,
-    apiKey,
-    projectId,
-    browserbaseSessionCreateParams,
-    browserbaseSessionID,
-    localBrowserLaunchOptions,
   }: ConstructorParams = {}) {
     this.externalLogger = logger || ((logLine: LogLine) => defaultLogger(logLine, disablePino));
 
@@ -269,16 +225,9 @@ export class Stagehand {
     this.llmProvider = llmProvider || new LLMProvider(this.logger, this.enableCaching);
 
     // Initialize provider system
-    this.initializeProvider(provider, env, apiKey, projectId, localBrowserLaunchOptions);
+    this.initializeProvider(provider);
 
-    // Store backwards compatibility values
-    this.apiKey = apiKey ?? process.env.BROWSERBASE_API_KEY;
-    this.projectId = projectId ?? process.env.BROWSERBASE_PROJECT_ID;
-    this.browserbaseSessionCreateParams = browserbaseSessionCreateParams;
-    this.browserbaseSessionID = browserbaseSessionID;
-    this.localBrowserLaunchOptions = localBrowserLaunchOptions;
-    this._env = env ?? (this._providerType === 'local' ? 'LOCAL' : 'BROWSERBASE');
-    this.sessionId = sessionId || browserbaseSessionID;
+    this.sessionId = sessionId;
 
     this.verbose = verbose ?? 0;
     // Update logger verbosity level
@@ -325,68 +274,34 @@ export class Stagehand {
     }
 
     this.domSettleTimeoutMs = domSettleTimeoutMs ?? 30_000;
-    this.headless = localBrowserLaunchOptions?.headless ?? false;
+    this.headless = false; // Will be set by provider-specific options
     this.userProvidedInstructions = systemPrompt;
-    this.usingAPI = useAPI;
-    if (this.usingAPI && this._providerType === 'local') {
-      // Make local provider supersede useAPI
-      this.usingAPI = false;
-    } else if (
-      this.usingAPI &&
-      this.llmClient &&
-      !['openai', 'anthropic', 'google', 'aisdk'].includes(this.llmClient.type)
-    ) {
-      throw new UnsupportedModelError(['openai', 'anthropic', 'google', 'aisdk'], 'API mode');
-    }
+    this.usingAPI = false; // Always use provider system
     this.waitForCaptchaSolves = waitForCaptchaSolves;
-
-    if (this.usingAPI) {
-      this.registerSignalHandlers();
-    }
     this.logInferenceToFile = logInferenceToFile;
     this.selfHeal = selfHeal;
     this.disablePino = disablePino;
     this.experimental = experimental;
     if (this.experimental) {
-      this.stagehandLogger.warn(
-        'Experimental mode is enabled. This is a beta feature and may break at any time. Enabling experimental mode will disable the API'
-      );
-      // Disable API mode in experimental mode
-      this.usingAPI = false;
+      this.stagehandLogger.warn('Experimental mode is enabled. This is a beta feature and may break at any time.');
     }
   }
 
-  private initializeProvider(
-    provider?: IBrowserProvider,
-    env?: 'LOCAL' | 'BROWSERBASE',
-    _apiKey?: string,
-    _projectId?: string,
-    _localBrowserLaunchOptions?: LocalBrowserLaunchOptions
-  ): void {
-    if (provider) {
-      // Use provided provider instance
-      this.provider = provider;
-      this._providerType = provider.type;
-    } else {
-      // Backwards compatibility: create a default provider based on env
-      if (env === 'BROWSERBASE') {
-        this.stagehandLogger.warn(
-          'env: "BROWSERBASE" is deprecated. Please use a provider instance from @wallcrawler/infra-aws package.'
-        );
-      }
-
-      // For backwards compatibility, we'll throw an error directing users to use provider packages
-      const suggestedProvider = env === 'LOCAL' || !env ? 'local' : 'aws';
+  private initializeProvider(provider?: IBrowserProvider): void {
+    if (!provider) {
       throw new StagehandError(
         `No provider instance provided. Please install and use a provider package:\n` +
           `- For local: npm install @wallcrawler/infra/local\n` +
           `- For AWS: npm install @wallcrawler/infra/aws\n\n` +
           `Example usage:\n` +
-          `import { ${suggestedProvider === 'local' ? 'LocalProvider' : 'AwsProvider'} } from '@wallcrawler/infra/${suggestedProvider}';\n` +
-          `const provider = new ${suggestedProvider === 'local' ? 'LocalProvider' : 'AwsProvider'}(config);\n` +
+          `import { LocalProvider } from '@wallcrawler/infra/local';\n` +
+          `const provider = new LocalProvider();\n` +
           `const stagehand = new Stagehand({ provider });`
       );
     }
+
+    this.provider = provider;
+    this._providerType = provider.type;
   }
 
   private registerSignalHandlers() {
@@ -421,13 +336,6 @@ export class Stagehand {
     return this._providerType;
   }
 
-  /**
-   * @deprecated Use providerType instead
-   */
-  public get env(): 'LOCAL' | 'BROWSERBASE' {
-    return this._providerType === 'local' ? 'LOCAL' : 'BROWSERBASE';
-  }
-
   public get context(): EnhancedContext {
     if (!this.stagehandContext) {
       throw new StagehandNotInitializedError('context');
@@ -444,33 +352,6 @@ export class Stagehand {
       );
     }
 
-    if (this.usingAPI) {
-      this.apiClient = new StagehandAPI({
-        apiKey: this.apiKey,
-        projectId: this.projectId,
-        logger: this.logger,
-      });
-
-      const modelApiKey = this.modelClientOptions?.apiKey;
-      const { sessionId, available } = await this.apiClient.init({
-        modelName: this.modelName,
-        modelApiKey: modelApiKey,
-        domSettleTimeoutMs: this.domSettleTimeoutMs,
-        verbose: this.verbose,
-        debugDom: this.debugDom,
-        systemPrompt: this.userProvidedInstructions,
-        selfHeal: this.selfHeal,
-        waitForCaptchaSolves: this.waitForCaptchaSolves,
-        actionTimeoutMs: this.actTimeoutMs,
-        browserbaseSessionCreateParams: this.browserbaseSessionCreateParams,
-        browserbaseSessionID: this.browserbaseSessionID,
-      });
-      if (!available) {
-        this.apiClient = null;
-      }
-      this.browserbaseSessionID = sessionId;
-    }
-
     const {
       provider: _provider,
       browser,
@@ -484,13 +365,6 @@ export class Stagehand {
       sessionId: this.sessionId,
       headless: this.headless,
       logger: this.logger,
-      // Backwards compatibility
-      apiKey: this.apiKey,
-      projectId: this.projectId,
-      env: this._env,
-      browserbaseSessionCreateParams: this.browserbaseSessionCreateParams,
-      browserbaseSessionID: this.browserbaseSessionID,
-      localBrowserLaunchOptions: this.localBrowserLaunchOptions,
     }).catch((e) => {
       this.stagehandLogger.error('Error in init:', { error: String(e) });
       const br: BrowserResult = {
@@ -499,7 +373,6 @@ export class Stagehand {
         debugUrl: undefined,
         sessionUrl: undefined,
         sessionId: undefined,
-        env: this.env,
       };
       return br;
     });
@@ -508,7 +381,7 @@ export class Stagehand {
     if (!context) {
       const errorMessage = 'The browser context is undefined. This means the CDP connection to the browser failed';
       this.stagehandLogger.error(
-        this.env === 'LOCAL'
+        this._providerType === 'local'
           ? `${errorMessage}. If running locally, please check if the browser is running and the port is open.`
           : errorMessage
       );
@@ -534,7 +407,6 @@ export class Stagehand {
     });
 
     this.sessionId = sessionId;
-    this.browserbaseSessionID = sessionId; // Backwards compatibility
 
     return { debugUrl, sessionUrl, sessionId };
   }
@@ -547,6 +419,13 @@ export class Stagehand {
   }
 
   async close(): Promise<void> {
+    // Stop any active screencast
+    try {
+      await this.stopScreencast();
+    } catch {
+      // Ignore errors during cleanup
+    }
+
     this._isClosed = true;
     if (this.apiClient) {
       const response = await this.apiClient.end();
@@ -889,6 +768,138 @@ export class Stagehand {
       });
       throw error;
     }
+  }
+
+  /**
+   * Start browser screencast for real-time viewing
+   */
+  async startScreencast(options?: ScreencastOptions): Promise<void> {
+    if (!this.stagehandPage) {
+      throw new StagehandNotInitializedError('page');
+    }
+
+    if (!this.provider) {
+      throw new StagehandNotInitializedError('provider');
+    }
+
+    // Check if provider supports screencast
+    if (!hasScreencastCapabilities(this.provider)) {
+      throw new Error('Current provider does not support screencast functionality');
+    }
+
+    const sessionId = this.sessionId;
+    if (!sessionId) {
+      throw new Error('No active session for screencast');
+    }
+
+    this.log({
+      category: 'screencast',
+      message: 'starting browser screencast',
+      level: 1,
+      auxiliary: {
+        options: {
+          value: JSON.stringify(options || {}),
+          type: 'string' as const,
+        },
+      },
+    });
+
+    await this.provider.startScreencast!(sessionId, options);
+  }
+
+  /**
+   * Stop browser screencast
+   */
+  async stopScreencast(): Promise<void> {
+    if (!this.stagehandPage) {
+      throw new StagehandNotInitializedError('page');
+    }
+
+    if (!this.provider) {
+      throw new StagehandNotInitializedError('provider');
+    }
+
+    // Check if provider supports screencast
+    if (!hasScreencastCapabilities(this.provider)) {
+      throw new Error('Current provider does not support screencast functionality');
+    }
+
+    const sessionId = this.sessionId;
+    if (!sessionId) {
+      throw new Error('No active session for screencast');
+    }
+
+    this.log({
+      category: 'screencast',
+      message: 'stopping browser screencast',
+      level: 1,
+    });
+
+    await this.provider.stopScreencast!(sessionId);
+  }
+
+  /**
+   * Send user input to remote browser (for screencast interaction)
+   */
+  async sendInput(inputEvent: InputEvent): Promise<void> {
+    if (!this.stagehandPage) {
+      throw new StagehandNotInitializedError('page');
+    }
+
+    if (!this.provider) {
+      throw new StagehandNotInitializedError('provider');
+    }
+
+    // Check if provider supports input
+    if (!hasScreencastCapabilities(this.provider)) {
+      throw new Error('Current provider does not support input functionality');
+    }
+
+    const sessionId = this.sessionId;
+    if (!sessionId) {
+      throw new Error('No active session for input');
+    }
+
+    this.log({
+      category: 'screencast',
+      message: 'sending user input to browser',
+      level: 2,
+      auxiliary: {
+        inputType: {
+          value: inputEvent.type,
+          type: 'string' as const,
+        },
+      },
+    });
+
+    await this.provider.sendInput!(sessionId, inputEvent);
+  }
+
+  /**
+   * Add event listener for screencast events
+   */
+  on(event: 'screencastFrame', listener: (frame: ScreencastFrame) => void): this;
+  on(event: 'screencastStarted', listener: (sessionId: string) => void): this;
+  on(event: 'screencastStopped', listener: (sessionId: string) => void): this;
+  on(event: 'screencastError', listener: (error: Error, sessionId: string) => void): this;
+  on(
+    event: string,
+    listener:
+      | ((frame: ScreencastFrame) => void)
+      | ((sessionId: string) => void)
+      | ((error: Error, sessionId: string) => void)
+      | ((...args: unknown[]) => void)
+  ): this {
+    if (!this.provider) {
+      throw new StagehandNotInitializedError('provider');
+    }
+
+    // Forward to provider if it supports events
+    if (hasScreencastCapabilities(this.provider) && this.provider.on) {
+      this.provider.on(event, listener as (...args: unknown[]) => void);
+    }
+
+    return this;
   }
 
   /**

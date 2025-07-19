@@ -178,7 +178,7 @@ ${scriptContent} \
   private async _refreshPageFromAPI() {
     if (!this.api) return;
 
-    const sessionId = this.stagehand.sessionId || this.stagehand.browserbaseSessionID;
+    const sessionId = this.stagehand.sessionId;
     if (!sessionId) {
       throw new ProviderSessionNotFoundError('No active session found for page refresh');
     }
