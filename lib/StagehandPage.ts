@@ -8,12 +8,14 @@ import {
   ExtractResult,
   ObserveOptions,
   ObserveResult,
-} from "../types/stagehand";
+  ActOptions,
+  ActResult,
+} from "@wallcrawler/util-ts";
 import { StagehandAPI } from "./api";
 import { StagehandActHandler } from "./handlers/actHandler";
 import { StagehandExtractHandler } from "./handlers/extractHandler";
 import { StagehandObserveHandler } from "./handlers/observeHandler";
-import { ActOptions, ActResult, GotoOptions, Stagehand } from "./index";
+import { GotoOptions, Stagehand } from "./index";
 import { LLMClient } from "./llm/LLMClient";
 import { StagehandContext } from "./StagehandContext";
 import { EncodedId, EnhancedContext } from "../types/context";

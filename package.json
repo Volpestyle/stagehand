@@ -73,6 +73,8 @@
   "dependencies": {
     "@anthropic-ai/sdk": "0.39.0",
     "@browserbasehq/sdk": "^2.4.0",
+    "@wallcrawler/sdk": "^1.0.0",
+    "@wallcrawler/util-ts": "^1.0.0",
     "@google/genai": "^0.8.0",
     "ai": "^4.3.9",
     "devtools-protocol": "^0.0.1464554",

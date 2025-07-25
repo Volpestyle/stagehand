@@ -1,7 +1,7 @@
 import { Browser, BrowserContext } from "./page";
 
 export interface BrowserResult {
-  env: "LOCAL" | "BROWSERBASE";
+  env: "LOCAL" | "BROWSERBASE" | "WALLCRAWLER";
   browser?: Browser;
   context: BrowserContext;
   debugUrl?: string;

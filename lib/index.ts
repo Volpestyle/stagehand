@@ -1,4 +1,5 @@
 import { Browserbase } from "@browserbasehq/sdk";
+import { Wallcrawler } from "@wallcrawler/sdk";
 import { Browser, chromium } from "playwright";
 import dotenv from "dotenv";
 import fs from "fs";
@@ -6,7 +7,7 @@ import os from "os";
 import path from "path";
 import { BrowserResult } from "../types/browser";
 import { EnhancedContext } from "../types/context";
-import { LogLine } from "../types/log";
+import { LogLine } from "@wallcrawler/util-ts";
 import { AvailableModel } from "../types/model";
 import { BrowserContext, Page } from "../types/page";
 import {
@@ -70,14 +71,165 @@ const defaultLogger = async (logLine: LogLine, disablePino?: boolean) => {
 async function getBrowser(
   apiKey: string | undefined,
   projectId: string | undefined,
-  env: "LOCAL" | "BROWSERBASE" = "LOCAL",
+  env: "LOCAL" | "BROWSERBASE" | "WALLCRAWLER" = "LOCAL",
   headless: boolean = false,
   logger: (message: LogLine) => void,
   browserbaseSessionCreateParams?: Browserbase.Sessions.SessionCreateParams,
   browserbaseSessionID?: string,
   localBrowserLaunchOptions?: LocalBrowserLaunchOptions,
 ): Promise<BrowserResult> {
-  if (env === "BROWSERBASE") {
+  if (env === "WALLCRAWLER") {
+    const wallcrawlerSessionId = browserbaseSessionID;
+    if (!apiKey) {
+      throw new MissingEnvironmentVariableError(
+        "WALLCRAWLER_API_KEY",
+        "Wallcrawler",
+      );
+    }
+    if (!projectId) {
+      throw new MissingEnvironmentVariableError(
+        "WALLCRAWLER_PROJECT_ID",
+        "Wallcrawler",
+      );
+    }
+
+    const wallcrawler = new Wallcrawler({
+      apiKey,
+      baseURL: process.env.WALLCRAWLER_BASE_URL,
+    });
+
+    let sessionId: string;
+    let connectUrl: string;
+
+    if (wallcrawlerSessionId) {
+      // Validate the session status
+      try {
+        const session =
+          await wallcrawler.sessions.retrieve(wallcrawlerSessionId);
+
+        if (session.status !== "RUNNING") {
+          throw new StagehandError(
+            `Session ${wallcrawlerSessionId} is not running (status: ${session.status})`,
+          );
+        }
+
+        sessionId = wallcrawlerSessionId;
+        connectUrl = session.connectUrl;
+
+        logger({
+          category: "init",
+          message: "resuming existing wallcrawler session...",
+          level: 1,
+          auxiliary: {
+            sessionId: {
+              value: sessionId,
+              type: "string",
+            },
+          },
+        });
+      } catch (error) {
+        logger({
+          category: "init",
+          message: "failed to resume session",
+          level: 0,
+          auxiliary: {
+            error: {
+              value: error.message,
+              type: "string",
+            },
+            trace: {
+              value: error.stack,
+              type: "string",
+            },
+          },
+        });
+        throw error;
+      }
+    } else {
+      // Create new session
+      logger({
+        category: "init",
+        message: "creating new wallcrawler session...",
+        level: 1,
+      });
+
+      if (!projectId) {
+        throw new StagehandError(
+          "WALLCRAWLER_PROJECT_ID is required for new Wallcrawler sessions.",
+        );
+      }
+
+      const session = await wallcrawler.sessions.create({
+        projectId,
+        userMetadata: {
+          ...(browserbaseSessionCreateParams?.userMetadata || {}),
+          stagehand: "true",
+        },
+      });
+
+      sessionId = session.id;
+      connectUrl = session.connectUrl;
+      logger({
+        category: "init",
+        message: "created new wallcrawler session",
+        level: 1,
+        auxiliary: {
+          sessionId: {
+            value: sessionId,
+            type: "string",
+          },
+        },
+      });
+    }
+
+    logger({
+      category: "init",
+      message: "connecting to wallcrawler session",
+      level: 1,
+      auxiliary: {
+        connectUrl: {
+          value: connectUrl,
+          type: "string",
+        },
+      },
+    });
+
+    const browser = await chromium.connectOverCDP(connectUrl);
+    const { debuggerUrl } = await wallcrawler.sessions.debug(sessionId);
+
+    logger({
+      category: "init",
+      message: wallcrawlerSessionId
+        ? "wallcrawler session resumed"
+        : "wallcrawler session started",
+      auxiliary: {
+        sessionUrl: {
+          value: `https://api.yourdomain.com/sessions/${sessionId}`,
+          type: "string",
+        },
+        debugUrl: {
+          value: debuggerUrl,
+          type: "string",
+        },
+        sessionId: {
+          value: sessionId,
+          type: "string",
+        },
+      },
+    });
+
+    const context = browser.contexts()[0];
+    await applyStealthScripts(context);
+
+    return {
+      browser,
+      context,
+      debugUrl: debuggerUrl,
+      sessionUrl: `https://api.yourdomain.com/sessions/${sessionId}`,
+      sessionId,
+      env: "WALLCRAWLER",
+    };
+  } else if (env === "BROWSERBASE") {
     if (!apiKey) {
       throw new MissingEnvironmentVariableError(
         "BROWSERBASE_API_KEY",
@@ -394,8 +546,9 @@ export class Stagehand {
   private stagehandLogger: StagehandLogger;
   private disablePino: boolean;
   private modelClientOptions: ClientOptions;
-  private _env: "LOCAL" | "BROWSERBASE";
+  private _env: "LOCAL" | "BROWSERBASE" | "WALLCRAWLER";
   private _browser: Browser | undefined;
+  public wallcrawler?: Wallcrawler;
   private _isClosed: boolean = false;
   private _history: Array<HistoryEntry> = [];
   public readonly experimental: boolean;
@@ -534,7 +687,7 @@ export class Stagehand {
       disablePino,
       experimental = false,
     }: ConstructorParams = {
-      env: "BROWSERBASE",
+      env: "WALLCRAWLER",
     },
   ) {
     this.externalLogger =
@@ -556,13 +709,31 @@ export class Stagehand {
 
     this.llmProvider =
       llmProvider || new LLMProvider(this.logger, this.enableCaching);
-    this.apiKey = apiKey ?? process.env.BROWSERBASE_API_KEY;
-    this.projectId = projectId ?? process.env.BROWSERBASE_PROJECT_ID;
+    this.apiKey =
+      apiKey ??
+      process.env.WALLCRAWLER_API_KEY ??
+      process.env.BROWSERBASE_API_KEY;
+    this.projectId =
+      projectId ??
+      process.env.WALLCRAWLER_PROJECT_ID ??
+      process.env.BROWSERBASE_PROJECT_ID;
 
     // Store the environment value
-    this._env = env ?? "BROWSERBASE";
+    this._env = env ?? "WALLCRAWLER";
 
-    if (this._env === "BROWSERBASE") {
+    if (this._env === "WALLCRAWLER") {
+      if (!this.apiKey) {
+        throw new MissingEnvironmentVariableError(
+          "WALLCRAWLER_API_KEY",
+          "Wallcrawler",
+        );
+      } else if (!this.projectId) {
+        throw new MissingEnvironmentVariableError(
+          "WALLCRAWLER_PROJECT_ID",
+          "Wallcrawler",
+        );
+      }
+    } else if (this._env === "BROWSERBASE") {
       if (!this.apiKey) {
         throw new MissingEnvironmentVariableError(
           "BROWSERBASE_API_KEY",
@@ -700,8 +871,21 @@ export class Stagehand {
     };
   }
 
-  public get env(): "LOCAL" | "BROWSERBASE" {
-    if (this._env === "BROWSERBASE") {
+  public get env(): "LOCAL" | "BROWSERBASE" | "WALLCRAWLER" {
+    if (this._env === "WALLCRAWLER") {
+      if (!this.apiKey) {
+        throw new MissingEnvironmentVariableError(
+          "WALLCRAWLER_API_KEY",
+          "Wallcrawler",
+        );
+      } else if (!this.projectId) {
+        throw new MissingEnvironmentVariableError(
+          "WALLCRAWLER_PROJECT_ID",
+          "Wallcrawler",
+        );
+      }
+      return "WALLCRAWLER";
+    } else if (this._env === "BROWSERBASE") {
       if (!this.apiKey) {
         throw new MissingEnvironmentVariableError(
           "BROWSERBASE_API_KEY",
@@ -743,10 +927,12 @@ export class Stagehand {
     }
 
     if (this.usingAPI) {
+      // Use StagehandAPI with appropriate provider for both environments
       this.apiClient = new StagehandAPI({
         apiKey: this.apiKey,
         projectId: this.projectId,
         logger: this.logger,
+        provider: this.env === "WALLCRAWLER" ? "wallcrawler" : "browserbase",
       });
 
       const modelApiKey = this.modelClientOptions?.apiKey;

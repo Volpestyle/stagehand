@@ -6,6 +6,7 @@ import {
   StagehandAPIConstructorParams,
   StartSessionParams,
   StartSessionResult,
+  ProviderType,
 } from "../types/api";
 import { LogLine } from "../types/log";
 import { GotoOptions } from "../types/playwright";
@@ -30,6 +31,20 @@ import {
 import makeFetchCookie from "fetch-cookie";
 import { STAGEHAND_VERSION } from "./version";
 
+interface ProviderConfig {
+  headers: {
+    apiKey: string;
+    projectId: string;
+    sessionId: string;
+    streamResponse: string;
+    modelApiKey: string;
+    sentAt: string;
+    language: string;
+    sdkVersion: string;
+  };
+  baseURL: string;
+}
+
 export class StagehandAPI {
   private apiKey: string;
   private projectId: string;
@@ -37,11 +52,18 @@ export class StagehandAPI {
   private modelApiKey: string;
   private logger: (message: LogLine) => void;
   private fetchWithCookies;
+  private provider: ProviderType;
 
-  constructor({ apiKey, projectId, logger }: StagehandAPIConstructorParams) {
+  constructor({
+    apiKey,
+    projectId,
+    logger,
+    provider,
+  }: StagehandAPIConstructorParams) {
     this.apiKey = apiKey;
     this.projectId = projectId;
     this.logger = logger;
+    this.provider = provider;
     // Create a single cookie jar instance that will persist across all requests
     this.fetchWithCookies = makeFetchCookie(fetch);
   }
@@ -233,36 +255,72 @@ export class StagehandAPI {
     }
   }
 
+  private getProviderConfig(): ProviderConfig {
+    switch (this.provider) {
+      case "wallcrawler":
+        return {
+          headers: {
+            apiKey: "x-wc-api-key",
+            projectId: "x-wc-project-id",
+            sessionId: "x-wc-session-id",
+            streamResponse: "x-stream-response",
+            modelApiKey: "x-model-api-key",
+            sentAt: "x-sent-at",
+            language: "x-language",
+            sdkVersion: "x-sdk-version",
+          },
+          baseURL:
+            process.env.WALLCRAWLER_API_URL ?? "https://api.wallcrawler.dev/v1",
+        };
+      case "browserbase":
+      default:
+        return {
+          headers: {
+            apiKey: "x-bb-api-key",
+            projectId: "x-bb-project-id",
+            sessionId: "x-bb-session-id",
+            streamResponse: "x-stream-response",
+            modelApiKey: "x-model-api-key",
+            sentAt: "x-sent-at",
+            language: "x-language",
+            sdkVersion: "x-sdk-version",
+          },
+          baseURL:
+            process.env.STAGEHAND_API_URL ??
+            "https://api.stagehand.browserbase.com/v1",
+        };
+    }
+  }
+
   private async request(
     path: string,
     options: RequestInit = {},
   ): Promise<Response> {
+    const config = this.getProviderConfig();
+
     const defaultHeaders: Record<string, string> = {
-      "x-bb-api-key": this.apiKey,
-      "x-bb-project-id": this.projectId,
-      "x-bb-session-id": this.sessionId,
+      [config.headers.apiKey]: this.apiKey,
+      [config.headers.projectId]: this.projectId,
+      [config.headers.sessionId]: this.sessionId,
       // we want real-time logs, so we stream the response
-      "x-stream-response": "true",
-      "x-model-api-key": this.modelApiKey,
-      "x-sent-at": new Date().toISOString(),
-      "x-language": "typescript",
-      "x-sdk-version": STAGEHAND_VERSION,
+      [config.headers.streamResponse]: "true",
+      [config.headers.modelApiKey]: this.modelApiKey,
+      [config.headers.sentAt]: new Date().toISOString(),
+      [config.headers.language]: "typescript",
+      [config.headers.sdkVersion]: STAGEHAND_VERSION,
     };
 
     if (options.method === "POST" && options.body) {
       defaultHeaders["Content-Type"] = "application/json";
     }
 
-    const response = await this.fetchWithCookies(
-      `${process.env.STAGEHAND_API_URL ?? "https://api.stagehand.browserbase.com/v1"}${path}`,
-      {
-        ...options,
-        headers: {
-          ...defaultHeaders,
-          ...options.headers,
-        },
+    const response = await this.fetchWithCookies(`${config.baseURL}${path}`, {
+      ...options,
+      headers: {
+        ...defaultHeaders,
+        ...options.headers,
       },
-    );
+    });
 
     return response;
   }

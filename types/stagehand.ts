@@ -11,7 +11,7 @@ export interface ConstructorParams {
   /**
    * The environment to use for Stagehand
    */
-  env: "LOCAL" | "BROWSERBASE";
+  env: "LOCAL" | "BROWSERBASE" | "WALLCRAWLER";
   /**
    * Your Browserbase API key
    */

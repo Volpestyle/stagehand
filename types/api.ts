@@ -1,10 +1,23 @@
-import Browserbase from "@browserbasehq/sdk";
+import { Browserbase } from "@browserbasehq/sdk";
 import { LogLine } from "./log";
+
+export type ProviderType = "browserbase" | "wallcrawler";
+
+export interface ProviderConfig {
+  type: ProviderType;
+  headers: {
+    apiKey: string;
+    projectId: string;
+    sessionId: string;
+  };
+  baseURL: string;
+}
 
 export interface StagehandAPIConstructorParams {
   apiKey: string;
   projectId: string;
   logger: (message: LogLine) => void;
+  provider?: ProviderType; // Optional, defaults to "browserbase" for backwards compatibility
 }
 
 export interface ExecuteActionParams {
