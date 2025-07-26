@@ -1,4 +1,4 @@
-import Browserbase from "@browserbasehq/sdk";
+import { Browserbase } from "@wallcrawler/sdk";
 import { z } from "zod";
 import { LLMProvider } from "../lib/llm/LLMProvider";
 import { LogLine } from "./log";

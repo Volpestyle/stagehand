@@ -1,4 +1,4 @@
-import { Browserbase } from "@browserbasehq/sdk";
+import { Browserbase } from "@wallcrawler/sdk";
 import { LogLine } from "./log";
 
 export type ProviderType = "browserbase" | "wallcrawler";

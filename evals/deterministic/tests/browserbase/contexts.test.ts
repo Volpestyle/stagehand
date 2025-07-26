@@ -1,4 +1,4 @@
-import Browserbase from "@browserbasehq/sdk";
+import { Browserbase } from "@wallcrawler/sdk";
 import { expect, test } from "@playwright/test";
 import StagehandConfig from "@/evals/deterministic/stagehand.config";
 import { Stagehand } from "@browserbasehq/stagehand";

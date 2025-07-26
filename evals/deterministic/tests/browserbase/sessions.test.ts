@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { Stagehand } from "@browserbasehq/stagehand";
 import StagehandConfig from "@/evals/deterministic/stagehand.config";
-import Browserbase from "@browserbasehq/sdk";
+import { Browserbase } from "@wallcrawler/sdk";
 
 test.describe("Browserbase Sessions", () => {
   let browserbase: Browserbase;

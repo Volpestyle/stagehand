@@ -1,5 +1,4 @@
-import { Browserbase } from "@browserbasehq/sdk";
-import { Wallcrawler } from "@wallcrawler/sdk";
+import { Browserbase, Wallcrawler } from "@wallcrawler/sdk";
 import { Browser, chromium } from "playwright";
 import dotenv from "dotenv";
 import fs from "fs";

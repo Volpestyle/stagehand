@@ -1,4 +1,4 @@
-import { Browserbase } from "@browserbasehq/sdk";
+import { Browserbase, Wallcrawler } from "@wallcrawler/sdk";
 import type { CDPSession, Page as PlaywrightPage, Frame } from "playwright";
 import { chromium } from "playwright";
 import { z } from "zod";
@@ -185,11 +185,17 @@ ${scriptContent} \
       throw new BrowserbaseSessionNotFoundError();
     }
 
-    const browserbase = new Browserbase({
-      apiKey: this.stagehand["apiKey"] ?? process.env.BROWSERBASE_API_KEY,
-    });
+    // Use appropriate client based on environment
+    const client =
+      this.stagehand.env === "WALLCRAWLER"
+        ? new Wallcrawler({
+            apiKey: this.stagehand["apiKey"] ?? process.env.WALLCRAWLER_API_KEY,
+          })
+        : new Browserbase({
+            apiKey: this.stagehand["apiKey"] ?? process.env.BROWSERBASE_API_KEY,
+          });
 
-    const sessionStatus = await browserbase.sessions.retrieve(sessionId);
+    const sessionStatus = await client.sessions.retrieve(sessionId);
 
     const connectUrl = sessionStatus.connectUrl;
     const browser = await chromium.connectOverCDP(connectUrl);

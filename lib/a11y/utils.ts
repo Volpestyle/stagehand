@@ -168,7 +168,7 @@ export async function buildBackendIdMaps(
 
       let iframeNode: DOMNode | undefined;
       const locate = (n: DOMNode): boolean => {
-        if (n.backendNodeId === backendNodeId) return (iframeNode = n), true;
+        if (n.backendNodeId === backendNodeId) return ((iframeNode = n), true);
         return (
           (n.children?.some(locate) ?? false) ||
           (n.contentDocument ? locate(n.contentDocument) : false)

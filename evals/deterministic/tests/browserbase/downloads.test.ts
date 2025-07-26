@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import AdmZip from "adm-zip";
 import StagehandConfig from "@/evals/deterministic/stagehand.config";
 import { Stagehand } from "@browserbasehq/stagehand";
-import Browserbase from "@browserbasehq/sdk";
+import { Browserbase } from "@wallcrawler/sdk";
 
 const downloadRe = /sandstorm-(\d{13})+\.mp3/;
 const pdfRe = /sample-(\d{13})+\.pdf/;
