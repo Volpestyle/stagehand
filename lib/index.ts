@@ -6,7 +6,7 @@ import os from "os";
 import path from "path";
 import { BrowserResult } from "../types/browser";
 import { EnhancedContext } from "../types/context";
-import { LogLine } from "@wallcrawler/util-ts";
+import { LogLine } from "../types/log";
 import { AvailableModel } from "../types/model";
 import { BrowserContext, Page } from "../types/page";
 import {

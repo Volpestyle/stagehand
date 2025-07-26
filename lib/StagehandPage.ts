@@ -10,7 +10,7 @@ import {
   ObserveResult,
   ActOptions,
   ActResult,
-} from "@wallcrawler/util-ts";
+} from "../types/stagehand";
 import { StagehandAPI } from "./api";
 import { StagehandActHandler } from "./handlers/actHandler";
 import { StagehandExtractHandler } from "./handlers/extractHandler";
