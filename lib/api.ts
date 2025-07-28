@@ -87,7 +87,7 @@ export class StagehandAPI {
     this.modelApiKey = modelApiKey;
 
     const region = browserbaseSessionCreateParams?.region;
-    if (region && region !== "us-west-2") {
+    if (region && region !== "us-east-1") {
       return { sessionId: browserbaseSessionID ?? null, available: false };
     }
     const sessionResponse = await this.request("/sessions/start", {
