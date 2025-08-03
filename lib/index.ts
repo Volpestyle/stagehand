@@ -94,7 +94,7 @@ async function getBrowser(
 
     const wallcrawler = new Wallcrawler({
       apiKey,
-      baseURL: process.env.WALLCRAWLER_BASE_URL,
+      baseURL: process.env.WALLCRAWLER_API_URL,
     });
 
     let sessionId: string;

@@ -269,8 +269,7 @@ export class StagehandAPI {
             language: "x-language",
             sdkVersion: "x-sdk-version",
           },
-          baseURL:
-            process.env.WALLCRAWLER_API_URL ?? "https://api.wallcrawler.dev/v1",
+          baseURL: process.env.WALLCRAWLER_API_URL,
         };
       case "browserbase":
       default:
